@@ -141,6 +141,35 @@ struct Notepad__App: App {
                 Divider()
                 
                 Button(action: {
+                    AppSettings.shared.codeFolding.toggle()
+                }) {
+                    HStack {
+                        Text("Code Folding")
+                        if AppSettings.shared.codeFolding {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                
+                Button(action: {
+                    NotificationCenter.default.post(name: .foldAll, object: nil)
+                }) {
+                    Text("Fold All")
+                }
+                .keyboardShortcut("0", modifiers: [.command, .option])
+                .disabled(!AppSettings.shared.codeFolding)
+                
+                Button(action: {
+                    NotificationCenter.default.post(name: .unfoldAll, object: nil)
+                }) {
+                    Text("Unfold All")
+                }
+                .keyboardShortcut("9", modifiers: [.command, .option])
+                .disabled(!AppSettings.shared.codeFolding)
+                
+                Divider()
+                
+                Button(action: {
                     AppSettings.shared.showWhitespace.toggle()
                 }) {
                     HStack {
@@ -184,4 +213,6 @@ extension Notification.Name {
     static let copy = Notification.Name("copy")
     static let paste = Notification.Name("paste")
     static let selectAll = Notification.Name("selectAll")
+    static let foldAll = Notification.Name("foldAll")
+    static let unfoldAll = Notification.Name("unfoldAll")
 }

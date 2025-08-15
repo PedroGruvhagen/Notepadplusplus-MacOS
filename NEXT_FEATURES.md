@@ -1,7 +1,7 @@
 # Next Features Priority List
 
 ## 🎯 Current Task: Ready for Next Feature
-Find & Replace completed successfully!
+Code Folding completed successfully!
 
 ## Priority Order (User Approved 2025-08-15)
 
@@ -44,11 +44,13 @@ Find & Replace completed successfully!
 - [x] View menu with toggles for Word Wrap, Line Numbers, Syntax Highlighting
 - [x] Edit menu with Undo, Redo, Cut, Copy, Paste, Select All
 
-### 5. Code Folding
-- [ ] Detect foldable regions
-- [ ] Fold/unfold buttons
-- [ ] Fold all/unfold all
-- [ ] Remember fold state
+### 5. Code Folding ✅ COMPLETED (2025-08-15)
+- [x] Detect foldable regions (language-specific)
+- [x] Fold/unfold buttons in line number view
+- [x] Fold all/unfold all commands (View menu)
+- [x] Remember fold state during editing
+- [x] Support for multiple languages (C-style, Python, XML, Ruby, YAML)
+- [x] Toggle via View menu with keyboard shortcuts
 
 ### 6. Advanced Search
 - [ ] Find in Files

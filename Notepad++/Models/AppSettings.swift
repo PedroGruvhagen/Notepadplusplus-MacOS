@@ -37,6 +37,7 @@ class AppSettings: ObservableObject {
     @AppStorage("caretBlinkRate") var caretBlinkRate: Double = 600.0
     @AppStorage("enableMultiSelection") var enableMultiSelection: Bool = true
     @AppStorage("scrollBeyondLastLine") var scrollBeyondLastLine: Bool = false
+    @AppStorage("codeFolding") var codeFolding: Bool = true
     
     // MARK: - Tab Settings
     @AppStorage("tabSize") var tabSize: Int = 4

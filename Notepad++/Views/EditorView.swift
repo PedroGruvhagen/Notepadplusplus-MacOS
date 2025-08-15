@@ -31,8 +31,7 @@ struct EditorView: View {
             
             if settings.showLineNumbers {
                 HStack(alignment: .top, spacing: 0) {
-                    LineNumberView(text: document.content, fontSize: fontSize)
-                        .frame(width: 50)
+                    EnhancedLineNumberView(document: document, fontSize: fontSize)
                         .background(Color(NSColor.controlBackgroundColor))
                     
                     Divider()
@@ -82,6 +81,12 @@ struct EditorView: View {
         .onReceive(NotificationCenter.default.publisher(for: .showReplace)) { _ in
             showFindReplace = true
             showReplaceBar = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .foldAll)) { _ in
+            document.foldingState.foldAll()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .unfoldAll)) { _ in
+            document.foldingState.unfoldAll()
         }
         .toolbar {
             ToolbarItemGroup {

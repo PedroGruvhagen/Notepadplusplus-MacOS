@@ -48,6 +48,20 @@
 
 None currently active
 
+## ✅ RECENTLY COMPLETED (2025-08-15 - Session 3)
+
+### Code Folding System
+- ✅ **FoldingRegion model** - Represents foldable code blocks
+- ✅ **FoldingManager service** - Detects foldable regions based on language
+- ✅ **Language-specific folding** - Support for C-style, Python, XML, Ruby, YAML
+- ✅ **Fold indicators** - Chevron buttons in line number view
+- ✅ **Fold/unfold functionality** - Click to toggle individual regions
+- ✅ **Fold All command** - ⌘⌥0 keyboard shortcut
+- ✅ **Unfold All command** - ⌘⌥9 keyboard shortcut
+- ✅ **View menu integration** - Toggle code folding on/off
+- ✅ **Persistent fold state** - Maintains state during text editing
+- ✅ **Smart region detection** - Functions, classes, blocks, comments
+
 ## ✅ RECENTLY COMPLETED (2025-08-15 - Session 2)
 
 ### Find & Replace System
