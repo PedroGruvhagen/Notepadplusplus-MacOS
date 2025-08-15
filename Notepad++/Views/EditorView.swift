@@ -56,6 +56,11 @@ struct EditorView: View {
                         showIndentGuides: settings.showIndentGuides,
                         caretWidth: CGFloat(settings.caretWidth),
                         scrollBeyondLastLine: settings.scrollBeyondLastLine,
+                        tabSize: settings.tabSize,
+                        replaceTabsBySpaces: settings.replaceTabsBySpaces,
+                        maintainIndent: settings.maintainIndent,
+                        autoIndent: settings.autoIndent,
+                        smartIndent: settings.smartIndent,
                         language: document.language,
                         syntaxHighlightingEnabled: enableSyntaxHighlighting && settings.syntaxHighlighting,
                         onTextChange: nil
@@ -83,6 +88,11 @@ struct EditorView: View {
                     showIndentGuides: settings.showIndentGuides,
                     caretWidth: CGFloat(settings.caretWidth),
                     scrollBeyondLastLine: settings.scrollBeyondLastLine,
+                    tabSize: settings.tabSize,
+                    replaceTabsBySpaces: settings.replaceTabsBySpaces,
+                    maintainIndent: settings.maintainIndent,
+                    autoIndent: settings.autoIndent,
+                    smartIndent: settings.smartIndent,
                     language: document.language,
                     syntaxHighlightingEnabled: settings.syntaxHighlighting,
                     onTextChange: nil
