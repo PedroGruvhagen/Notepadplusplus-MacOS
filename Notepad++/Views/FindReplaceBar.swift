@@ -35,7 +35,7 @@ struct FindReplaceBar: View {
                     .onSubmit {
                         findNext()
                     }
-                    .onChange(of: searchText) { _ in
+                    .onChange(of: searchText) {
                         updateSearchResults()
                     }
                 
@@ -61,21 +61,21 @@ struct FindReplaceBar: View {
                 Toggle("Aa", isOn: $caseSensitive)
                     .toggleStyle(.button)
                     .help("Case Sensitive")
-                    .onChange(of: caseSensitive) { _ in
+                    .onChange(of: caseSensitive) {
                         updateSearchResults()
                     }
                 
                 Toggle("W", isOn: $wholeWord)
                     .toggleStyle(.button)
                     .help("Whole Word")
-                    .onChange(of: wholeWord) { _ in
+                    .onChange(of: wholeWord) {
                         updateSearchResults()
                     }
                 
                 Toggle(".*", isOn: $useRegex)
                     .toggleStyle(.button)
                     .help("Regex")
-                    .onChange(of: useRegex) { _ in
+                    .onChange(of: useRegex) {
                         updateSearchResults()
                     }
                 

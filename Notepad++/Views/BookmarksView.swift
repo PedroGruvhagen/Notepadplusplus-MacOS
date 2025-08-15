@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct BookmarksView: View {
-    @StateObject private var searchManager = SearchManager.shared
+    @StateObject private var searchManager = AdvancedSearchManager.shared
     @State private var selectedBookmark: Bookmark?
     @State private var searchText = ""
     @Environment(\.dismiss) var dismiss
@@ -166,7 +166,7 @@ struct BookmarkRow: View {
                 
                 Text(bookmark.filePath.path)
                     .font(.caption2)
-                    .foregroundColor(.tertiary)
+                    .foregroundColor(Color.secondary.opacity(0.5))
                     .lineLimit(1)
             }
         }

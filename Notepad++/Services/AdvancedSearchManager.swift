@@ -8,8 +8,8 @@
 import Foundation
 import SwiftUI
 
-class SearchManager: ObservableObject {
-    static let shared = SearchManager()
+class AdvancedSearchManager: ObservableObject {
+    static let shared = AdvancedSearchManager()
     
     // MARK: - Published Properties
     @Published var searchHistory: [SearchHistoryItem] = []
@@ -48,8 +48,9 @@ class SearchManager: ObservableObject {
             
             for (index, fileURL) in fileURLs.enumerated() {
                 // Update progress
+                let progressValue = Double(index) / Double(totalFiles)
                 await MainActor.run {
-                    searchProgress = Double(index) / Double(totalFiles)
+                    searchProgress = progressValue
                 }
                 
                 // Search in file
@@ -58,8 +59,9 @@ class SearchManager: ObservableObject {
                     
                     // Update results incrementally
                     if results.count % 10 == 0 {
+                        let currentResults = results
                         await MainActor.run {
-                            currentSearchResults = results
+                            currentSearchResults = currentResults
                         }
                     }
                 }
@@ -70,8 +72,9 @@ class SearchManager: ObservableObject {
                 }
             }
             
+            let finalResults = results
             await MainActor.run {
-                currentSearchResults = results
+                currentSearchResults = finalResults
                 isSearching = false
                 searchProgress = 1.0
             }
@@ -92,7 +95,8 @@ class SearchManager: ObservableObject {
         let options: FileManager.DirectoryEnumerationOptions = configuration.includeSubfolders ? [] : [.skipsSubdirectoryDescendants]
         
         if let enumerator = fileManager.enumerator(at: path, includingPropertiesForKeys: resourceKeys, options: options) {
-            for case let fileURL as URL in enumerator {
+            let urls = enumerator.allObjects.compactMap { $0 as? URL }
+            for fileURL in urls {
                 let resourceValues = try fileURL.resourceValues(forKeys: Set(resourceKeys))
                 
                 guard resourceValues.isRegularFile == true else { continue }

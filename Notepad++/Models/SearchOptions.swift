@@ -25,7 +25,7 @@ class SearchOptions: ObservableObject {
     }
 }
 
-struct SearchResult {
+struct SimpleSearchResult {
     let range: NSRange
     let lineNumber: Int
     let preview: String
@@ -36,7 +36,7 @@ class SearchManager: ObservableObject {
     @Published var isReplaceVisible = false
     @Published var currentMatchIndex = 0
     @Published var totalMatches = 0
-    @Published var searchResults: [SearchResult] = []
+    @Published var searchResults: [SimpleSearchResult] = []
     
     private var currentDocument: Document?
     private let searchOptions = SearchOptions()
@@ -145,7 +145,6 @@ class SearchManager: ObservableObject {
         guard !ranges.isEmpty else { return (document.content, 0) }
         
         var newContent = document.content as NSString
-        var offset = 0
         
         // Replace from end to beginning to maintain indices
         for range in ranges.reversed() {
