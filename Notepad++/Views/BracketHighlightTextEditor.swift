@@ -26,7 +26,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         // Essential properties for text to be visible and editable
         textView.isEditable = true
         textView.isSelectable = true
-        textView.isRichText = false  // Use plain text for now to avoid issues
+        textView.isRichText = true  // Enable rich text for syntax highlighting
         textView.importsGraphics = false
         textView.allowsUndo = true
         
@@ -76,6 +76,12 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         scrollView.borderType = .noBorder
         
         context.coordinator.textView = textView
+        
+        // Apply initial syntax highlighting if enabled
+        if syntaxHighlightingEnabled, let language = language {
+            context.coordinator.applySyntaxHighlighting(textView: textView, language: language)
+        }
+        
         context.coordinator.updateBracketHighlighting()
         
         // Set up notification observer for bracket navigation
@@ -100,6 +106,12 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         let isFirstResponder = textView.window?.firstResponder == textView
         if !isFirstResponder && textView.string != text {
             textView.string = text
+            
+            // Apply syntax highlighting after text update
+            if syntaxHighlightingEnabled, let language = language {
+                context.coordinator.applySyntaxHighlighting(textView: textView, language: language)
+            }
+            
             context.coordinator.updateBracketHighlighting()
         }
     }
@@ -197,7 +209,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             }
         }
         
-        private func applySyntaxHighlighting(textView: NSTextView, language: LanguageDefinition) {
+        func applySyntaxHighlighting(textView: NSTextView, language: LanguageDefinition) {
             guard let textStorage = textView.textStorage else { return }
             let text = textView.string
             
