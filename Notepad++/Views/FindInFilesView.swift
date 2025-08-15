@@ -9,7 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct FindInFilesView: View {
-    @StateObject private var searchManager = SearchManager.shared
+    @StateObject private var searchManager = AdvancedSearchManager.shared
     @State private var searchText = ""
     @State private var searchPath = ""
     @State private var fileFilter = "*.*"

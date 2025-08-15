@@ -36,7 +36,7 @@ struct FoldableTextEditor: NSViewRepresentable {
             foldableTextView.foldingState = foldingState
             
             // Apply settings
-            let fontName = settings.fontName.isEmpty ? "SF Mono" : settings.fontName
+            let fontName = settings.fontName.isEmpty ? "Menlo" : settings.fontName
             if let customFont = NSFont(name: fontName, size: CGFloat(settings.fontSize)) {
                 foldableTextView.font = customFont
             } else {

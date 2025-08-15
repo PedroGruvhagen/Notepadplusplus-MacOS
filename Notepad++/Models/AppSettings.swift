@@ -23,7 +23,7 @@ class AppSettings: ObservableObject {
     @AppStorage("updateInterval") var updateIntervalDays: Int = 15
     
     // MARK: - Editor Settings
-    @AppStorage("fontName") var fontName: String = "SF Mono"
+    @AppStorage("fontName") var fontName: String = "Menlo"
     @AppStorage("fontSize") var fontSize: Double = 13.0
     @AppStorage("showLineNumbers") var showLineNumbers: Bool = true
     @AppStorage("showBookmarks") var showBookmarks: Bool = true
@@ -125,7 +125,7 @@ class AppSettings: ObservableObject {
         updateIntervalDays = 15
         
         // Editor
-        fontName = "SF Mono"
+        fontName = "Menlo"
         fontSize = 13.0
         showLineNumbers = true
         showBookmarks = true
