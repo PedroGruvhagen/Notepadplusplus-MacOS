@@ -64,6 +64,11 @@ struct Notepad__App: App {
                 }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
             }
+            
+            // Language menu - matching Notepad++ structure
+            CommandMenu("Language") {
+                LanguageMenuView()
+            }
         }
     }
 }
@@ -73,8 +78,6 @@ extension Notification.Name {
     static let newDocument = Notification.Name("newDocument")
     static let saveDocument = Notification.Name("saveDocument")
     static let saveDocumentAs = Notification.Name("saveDocumentAs")
-    static let showFind = Notification.Name("showFind")
-    static let showReplace = Notification.Name("showReplace")
     static let findNext = Notification.Name("findNext")
     static let findPrevious = Notification.Name("findPrevious")
 }

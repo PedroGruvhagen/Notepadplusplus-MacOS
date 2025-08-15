@@ -47,9 +47,9 @@ struct SyntaxStyle: Codable {
     }
 }
 
-// MARK: - Language Manager
-class LanguageManager: ObservableObject {
-    static let shared = LanguageManager()
+// MARK: - Old Language Manager (deprecated - use Services/LanguageManager instead)
+class OldLanguageManager: ObservableObject {
+    static let shared = OldLanguageManager()
     
     @Published var languages: [LanguageDefinition] = []
     

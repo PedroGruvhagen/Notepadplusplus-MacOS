@@ -217,6 +217,5 @@ struct FindReplaceView: View {
 // Notification names
 extension Notification.Name {
     static let highlightSearchResults = Notification.Name("highlightSearchResults")
-    static let selectSearchResult = Notification.Name("selectSearchResult")
     static let showMessage = Notification.Name("showMessage")
 }
