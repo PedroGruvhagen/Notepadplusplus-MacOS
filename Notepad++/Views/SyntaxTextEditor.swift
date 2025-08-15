@@ -14,6 +14,8 @@ struct SyntaxTextEditor: NSViewRepresentable {
     let fontSize: CGFloat
     let syntaxHighlightingEnabled: Bool
     let onTextChange: (String) -> Void
+    @State private var searchRanges: [NSRange] = []
+    @State private var currentSearchRange: NSRange?
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSTextView.scrollableTextView()
@@ -66,6 +68,8 @@ struct SyntaxTextEditor: NSViewRepresentable {
         var language: LanguageDefinition?
         private let syntaxHighlighter = SyntaxHighlighter()
         private var isUpdating = false
+        private var searchRanges: [NSRange] = []
+        private var currentSearchIndex: Int = 0
         
         init(_ parent: SyntaxTextEditor) {
             self.parent = parent
@@ -165,7 +169,36 @@ struct SyntaxTextEditor: NSViewRepresentable {
             // Restore cursor position
             textView.setSelectedRange(selectedRange)
             
+            // Highlight search results if any
+            highlightSearchResults(in: textStorage)
+            
             isUpdating = false
+        }
+        
+        func highlightSearchResults(in textStorage: NSTextStorage) {
+            // Highlight all search results with yellow background
+            for range in searchRanges {
+                if range.location + range.length <= textStorage.length {
+                    textStorage.addAttribute(.backgroundColor, value: NSColor.yellow.withAlphaComponent(0.3), range: range)
+                }
+            }
+            
+            // Highlight current search result with stronger color
+            if currentSearchIndex >= 0 && currentSearchIndex < searchRanges.count {
+                let currentRange = searchRanges[currentSearchIndex]
+                if currentRange.location + currentRange.length <= textStorage.length {
+                    textStorage.addAttribute(.backgroundColor, value: NSColor.orange.withAlphaComponent(0.5), range: currentRange)
+                }
+            }
+        }
+        
+        func setSearchResults(_ ranges: [NSRange], currentIndex: Int = 0) {
+            searchRanges = ranges
+            currentSearchIndex = currentIndex
+            // Trigger re-highlighting
+            if let textView = parent as? NSTextView {
+                applySyntaxHighlighting(to: textView)
+            }
         }
     }
 }
