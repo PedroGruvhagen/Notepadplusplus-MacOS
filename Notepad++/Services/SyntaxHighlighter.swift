@@ -134,16 +134,6 @@ class SyntaxHighlighter: ObservableObject {
 }
 
 // Helper extension for AttributedString
-extension AttributedString.Index {
-    func offsetByCharacters(_ offset: Int) -> AttributedString.Index {
-        var index = self
-        for _ in 0..<offset {
-            index = index.utf16Offset(in: self)
-        }
-        return index
-    }
-}
-
 extension AttributedString {
     func index(_ i: AttributedString.Index, offsetByCharacters offset: Int) -> AttributedString.Index {
         var index = i
@@ -151,24 +141,16 @@ extension AttributedString {
         
         if offset > 0 {
             while currentOffset < offset && index < self.endIndex {
-                index = self.index(afterCharacter: index)
+                index = self.characters.index(after: index)
                 currentOffset += 1
             }
         } else if offset < 0 {
             while currentOffset > offset && index > self.startIndex {
-                index = self.index(beforeCharacter: index)
+                index = self.characters.index(before: index)
                 currentOffset -= 1
             }
         }
         
         return index
-    }
-    
-    func index(afterCharacter i: AttributedString.Index) -> AttributedString.Index {
-        return self.characters.index(after: i)
-    }
-    
-    func index(beforeCharacter i: AttributedString.Index) -> AttributedString.Index {
-        return self.characters.index(before: i)
     }
 }
