@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 
+@MainActor
 class AdvancedSearchManager: ObservableObject {
     static let shared = AdvancedSearchManager()
     

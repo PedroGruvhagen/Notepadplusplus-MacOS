@@ -35,7 +35,7 @@ struct ContentView: View {
                 }
                 
                 Button(action: {
-                    Task {
+                    Task { @MainActor in
                         await documentManager.openDocument()
                     }
                 }) {
@@ -75,6 +75,16 @@ struct ContentView: View {
         ) { _ in
             Task { @MainActor in
                 documentManager.createNewDocument()
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .openDocument,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                await documentManager.openDocument()
             }
         }
         

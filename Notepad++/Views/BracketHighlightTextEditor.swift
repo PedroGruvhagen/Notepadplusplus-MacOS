@@ -101,11 +101,19 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         // Update font if size changed
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         
-        // Only update text from the binding if we're not currently editing
-        // and the text is actually different
-        let isFirstResponder = textView.window?.firstResponder == textView
-        if !isFirstResponder && textView.string != text {
+        // Update text if it's different from the current text
+        // We need to update even if it's first responder when the document changes (e.g., file open)
+        if textView.string != text {
+            // Save selection if editing
+            let savedSelection = textView.selectedRange()
+            let wasFirstResponder = textView.window?.firstResponder == textView
+            
             textView.string = text
+            
+            // Restore selection if we were editing
+            if wasFirstResponder && savedSelection.location <= text.count {
+                textView.setSelectedRange(savedSelection)
+            }
             
             // Apply syntax highlighting after text update
             if syntaxHighlightingEnabled, let language = language {

@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 
+@MainActor
 struct EditorTab: Identifiable, Hashable {
     let id = UUID()
     let document: Document

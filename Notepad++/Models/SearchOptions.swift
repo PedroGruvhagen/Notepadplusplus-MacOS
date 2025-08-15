@@ -88,6 +88,7 @@ class SearchManager: ObservableObject {
         }
     }
     
+    @MainActor
     func findNext(in document: Document, from position: Int) -> NSRange? {
         let ranges = findAll(in: document.content, searchText: searchOptions.searchText, options: searchOptions)
         
@@ -111,6 +112,7 @@ class SearchManager: ObservableObject {
         return nil
     }
     
+    @MainActor
     func findPrevious(in document: Document, from position: Int) -> NSRange? {
         let ranges = findAll(in: document.content, searchText: searchOptions.searchText, options: searchOptions)
         
@@ -134,11 +136,13 @@ class SearchManager: ObservableObject {
         return nil
     }
     
+    @MainActor
     func replace(in document: Document, at range: NSRange) -> String {
         let nsString = document.content as NSString
         return nsString.replacingCharacters(in: range, with: searchOptions.replaceText)
     }
     
+    @MainActor
     func replaceAll(in document: Document) -> (String, Int) {
         let ranges = findAll(in: document.content, searchText: searchOptions.searchText, options: searchOptions)
         

@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 
+@MainActor
 class Document: ObservableObject, Identifiable {
     let id = UUID()
     
@@ -32,9 +33,16 @@ class Document: ObservableObject, Identifiable {
             // Use the new LanguageManager to detect language
             if let nppLanguage = LanguageManager.shared.detectLanguage(for: path.lastPathComponent) {
                 self.language = nppLanguage.toLanguageDefinition()
+                print("DEBUG: Language detected: \(nppLanguage.name)")
             } else {
-                // Default to plain text if no language detected
-                self.language = nil
+                // Try the old language manager as fallback
+                if let oldLanguage = OldLanguageManager.shared.detectLanguage(for: path) {
+                    self.language = oldLanguage
+                    print("DEBUG: Language detected (fallback): \(oldLanguage.name)")
+                } else {
+                    self.language = nil
+                    print("DEBUG: No language detected for \(path.lastPathComponent)")
+                }
             }
         } else {
             self.fileName = "Untitled"
@@ -58,7 +66,10 @@ class Document: ObservableObject, Identifiable {
             throw DocumentError.noFilePath
         }
         
-        try content.write(to: url, atomically: true, encoding: .utf8)
+        let contentToSave = content
+        try await Task {
+            try contentToSave.write(to: url, atomically: true, encoding: .utf8)
+        }.value
         markAsSaved()
     }
     
@@ -69,16 +80,30 @@ class Document: ObservableObject, Identifiable {
         // Use the new LanguageManager to detect language
         if let nppLanguage = LanguageManager.shared.detectLanguage(for: url.lastPathComponent) {
             language = nppLanguage.toLanguageDefinition()
+            print("DEBUG: Language detected on save: \(nppLanguage.name)")
         } else {
-            // Default to plain text if no language detected
-            language = nil
+            // Try the old language manager as fallback
+            if let oldLanguage = OldLanguageManager.shared.detectLanguage(for: url) {
+                language = oldLanguage
+                print("DEBUG: Language detected on save (fallback): \(oldLanguage.name)")
+            } else {
+                language = nil
+                print("DEBUG: No language detected on save for \(url.lastPathComponent)")
+            }
         }
         try await save()
     }
     
     static func open(from url: URL) async throws -> Document {
-        let content = try String(contentsOf: url, encoding: .utf8)
-        return Document(content: content, filePath: url)
+        // Read file content on background thread
+        let content = try await Task.detached {
+            try String(contentsOf: url, encoding: .utf8)
+        }.value
+        
+        // Create Document on main thread
+        return await MainActor.run {
+            Document(content: content, filePath: url)
+        }
     }
 }
 

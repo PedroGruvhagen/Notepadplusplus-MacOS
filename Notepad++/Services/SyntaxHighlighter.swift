@@ -11,27 +11,34 @@ import AppKit
 
 class SyntaxHighlighter: ObservableObject {
     private let languageManager = OldLanguageManager.shared
+    private var cachedRegexes: [String: NSRegularExpression] = [:]
     
     func highlightedText(for content: String, language: LanguageDefinition?) -> AttributedString {
         guard let language = language else {
             return AttributedString(content)
         }
         
+        // Early return for very large files to prevent performance issues
+        if content.count > 100000 {
+            return AttributedString(content)
+        }
+        
         var attributedString = AttributedString(content)
         
-        // Highlight comments first (they override keywords)
-        highlightComments(in: &attributedString, content: content, language: language)
-        
-        // Highlight strings
+        // Apply highlighting in order of precedence
+        // 1. Strings (highest precedence)
         highlightStrings(in: &attributedString, content: content)
         
-        // Highlight keywords
+        // 2. Comments (override keywords but not strings)
+        highlightComments(in: &attributedString, content: content, language: language)
+        
+        // 3. Numbers
+        highlightNumbers(in: &attributedString, content: content)
+        
+        // 4. Keywords (lowest precedence)
         for keywordSet in language.keywords {
             highlightKeywords(in: &attributedString, content: content, keywords: keywordSet)
         }
-        
-        // Highlight numbers
-        highlightNumbers(in: &attributedString, content: content)
         
         return attributedString
     }
@@ -106,27 +113,39 @@ class SyntaxHighlighter: ObservableObject {
     
     private func highlightPattern(_ pattern: String, in attributedString: inout AttributedString, content: String, color: Color, bold: Bool = false, italic: Bool = false, options: NSRegularExpression.Options = []) {
         do {
-            let regex = try NSRegularExpression(pattern: pattern, options: options)
+            // Cache regex for better performance
+            let cacheKey = "\(pattern)_\(options.rawValue)"
+            let regex: NSRegularExpression
+            if let cached = cachedRegexes[cacheKey] {
+                regex = cached
+            } else {
+                regex = try NSRegularExpression(pattern: pattern, options: options)
+                cachedRegexes[cacheKey] = regex
+            }
+            
             let nsString = content as NSString
             let matches = regex.matches(in: content, options: [], range: NSRange(location: 0, length: nsString.length))
             
             for match in matches {
                 if let range = Range(match.range, in: content) {
                     if let attributeRange = Range(range, in: attributedString) {
-                        attributedString[attributeRange].foregroundColor = color
-                        
-                        if bold {
-                            attributedString[attributeRange].font = .system(.body).bold()
-                        }
-                        
-                        if italic {
-                            attributedString[attributeRange].font = .system(.body).italic()
+                        // Check if this range already has highlighting (for precedence)
+                        if attributedString[attributeRange].foregroundColor == nil {
+                            attributedString[attributeRange].foregroundColor = color
+                            
+                            if bold {
+                                attributedString[attributeRange].font = .system(.body).bold()
+                            }
+                            
+                            if italic {
+                                attributedString[attributeRange].font = .system(.body).italic()
+                            }
                         }
                     }
                 }
             }
         } catch {
-            print("Regex error: \(error)")
+            // Silently fail for invalid patterns
         }
     }
 }
