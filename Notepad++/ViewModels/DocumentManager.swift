@@ -60,9 +60,6 @@ class DocumentManager: ObservableObject {
         
         do {
             let document = try await Document.open(from: url)
-            print("DEBUG: Opened document with content length: \(document.content.count)")
-            print("DEBUG: Language detected: \(document.language?.name ?? "none")")
-            
             let tab = EditorTab(document: document)
             tabs.append(tab)
             activeTab = tab

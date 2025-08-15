@@ -42,12 +42,8 @@ struct EditorView: View {
                     
                     BracketHighlightTextEditor(
                         text: Binding(
-                            get: { 
-                                print("DEBUG EditorView Binding GET: doc.id=\(document.id), content.count=\(document.content.count)")
-                                return document.content 
-                            },
+                            get: { document.content },
                             set: { newText in 
-                                print("DEBUG EditorView Binding SET: doc.id=\(document.id), newText.count=\(newText.count)")
                                 document.updateContent(newText)
                             }
                         ),
@@ -64,12 +60,8 @@ struct EditorView: View {
             } else {
                 BracketHighlightTextEditor(
                     text: Binding(
-                        get: { 
-                            print("DEBUG EditorView Binding GET (no line numbers): content.count=\(document.content.count)")
-                            return document.content 
-                        },
+                        get: { document.content },
                         set: { newText in
-                            print("DEBUG EditorView Binding SET (no line numbers): newText.count=\(newText.count)")
                             document.updateContent(newText)
                         }
                     ),

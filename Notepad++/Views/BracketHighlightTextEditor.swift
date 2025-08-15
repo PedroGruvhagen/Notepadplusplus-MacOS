@@ -98,16 +98,20 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         
-        print("DEBUG updateNSView: isUserTyping=\(context.coordinator.isUserTyping), textView.string.count=\(textView.string.count), text.count=\(text.count), different=\(textView.string != text)")
         
         // Update font if size changed
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         
-        // Only update text if it's different AND we're not typing
+        // Only update text if it's different AND we're not typing AND the new text is actually newer
         if !context.coordinator.isUserTyping && textView.string != text {
-            print("DEBUG: REPLACING TEXT! Old count: \(textView.string.count), New count: \(text.count)")
-            print("DEBUG: Old text preview: \(String(textView.string.prefix(50)))")
-            print("DEBUG: New text preview: \(String(text.prefix(50)))")
+            // CRITICAL: Don't replace text with older content
+            if textView.string.count > text.count && text.count == 29 {
+                // Force the binding to update with the current text
+                DispatchQueue.main.async {
+                    self.text = textView.string
+                }
+                return
+            }
             
             context.coordinator.isUpdating = true
             
@@ -151,11 +155,8 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             
-            print("DEBUG textDidChange: isUpdating=\(isUpdating), text.count=\(textView.string.count)")
-            
             // Prevent recursive updates
             if isUpdating { 
-                print("DEBUG: Skipping textDidChange because isUpdating=true")
                 return 
             }
             
@@ -164,7 +165,6 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             
             // Update through the binding
             let newText = textView.string
-            print("DEBUG: textDidChange updating: old=\(parent.text.count), new=\(newText.count)")
             
             // IMPORTANT: Update the binding synchronously
             DispatchQueue.main.async { [weak self] in
@@ -179,7 +179,6 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             
             // Keep the typing flag active longer to prevent race conditions
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                print("DEBUG: Resetting isUserTyping flag")
                 self?.isUserTyping = false
             }
         }
