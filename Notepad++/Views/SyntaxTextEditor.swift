@@ -14,8 +14,6 @@ struct SyntaxTextEditor: NSViewRepresentable {
     let fontSize: CGFloat
     let syntaxHighlightingEnabled: Bool
     let onTextChange: (String) -> Void
-    @State private var searchRanges: [NSRange] = []
-    @State private var currentSearchRange: NSRange?
     @ObservedObject private var settings = AppSettings.shared
     
     func makeNSView(context: Context) -> NSScrollView {
@@ -65,6 +63,9 @@ struct SyntaxTextEditor: NSViewRepresentable {
         if syntaxHighlightingEnabled {
             context.coordinator.applySyntaxHighlighting(to: textView)
         }
+        
+        // Register for search notifications
+        context.coordinator.setupNotifications(for: textView)
         
         return scrollView
     }
@@ -126,11 +127,78 @@ struct SyntaxTextEditor: NSViewRepresentable {
         private var isUpdating = false
         private var searchRanges: [NSRange] = []
         private var currentSearchIndex: Int = 0
+        private weak var textView: NSTextView?
         
         init(_ parent: SyntaxTextEditor) {
             self.parent = parent
             self.syntaxHighlightingEnabled = parent.syntaxHighlightingEnabled
             self.language = parent.language
+            super.init()
+        }
+        
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+        
+        func setupNotifications(for textView: NSTextView) {
+            self.textView = textView
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleHighlightSearchResults(_:)),
+                name: .highlightSearchResult,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleClearSearchHighlights(_:)),
+                name: .clearSearchHighlights,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleSelectSearchResult(_:)),
+                name: .selectSearchResult,
+                object: nil
+            )
+        }
+        
+        @objc private func handleHighlightSearchResults(_ notification: Notification) {
+            guard let userInfo = notification.userInfo,
+                  let ranges = userInfo["ranges"] as? [NSRange],
+                  let textView = self.textView else { return }
+            
+            searchRanges = ranges
+            if let currentIndex = userInfo["currentIndex"] as? Int {
+                currentSearchIndex = currentIndex
+            }
+            
+            applySyntaxHighlighting(to: textView)
+            
+            // If there's a specific range to focus on, scroll to it
+            if let range = userInfo["range"] as? NSRange {
+                textView.scrollRangeToVisible(range)
+                textView.showFindIndicator(for: range)
+            }
+        }
+        
+        @objc private func handleClearSearchHighlights(_ notification: Notification) {
+            guard let textView = self.textView else { return }
+            searchRanges = []
+            currentSearchIndex = 0
+            applySyntaxHighlighting(to: textView)
+        }
+        
+        @objc private func handleSelectSearchResult(_ notification: Notification) {
+            guard let userInfo = notification.userInfo,
+                  let range = userInfo["range"] as? NSRange,
+                  let textView = self.textView else { return }
+            
+            textView.setSelectedRange(range)
+            textView.scrollRangeToVisible(range)
+            textView.showFindIndicator(for: range)
         }
         
         func textDidChange(_ notification: Notification) {
@@ -248,14 +316,6 @@ struct SyntaxTextEditor: NSViewRepresentable {
             }
         }
         
-        func setSearchResults(_ ranges: [NSRange], currentIndex: Int = 0) {
-            searchRanges = ranges
-            currentSearchIndex = currentIndex
-            // Trigger re-highlighting
-            if let textView = parent as? NSTextView {
-                applySyntaxHighlighting(to: textView)
-            }
-        }
     }
 }
 
