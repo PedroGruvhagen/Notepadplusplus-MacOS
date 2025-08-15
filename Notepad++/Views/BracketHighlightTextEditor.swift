@@ -101,19 +101,21 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         // Update font if size changed
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         
-        // Update text if it's different from the current text
-        // We need to update even if it's first responder when the document changes (e.g., file open)
-        if textView.string != text {
-            // Save selection if editing
+        // Only update text if it's different AND we're not typing
+        if !context.coordinator.isUserTyping && textView.string != text {
+            context.coordinator.isUpdating = true
+            
+            // Save selection and scroll position
             let savedSelection = textView.selectedRange()
-            let wasFirstResponder = textView.window?.firstResponder == textView
+            let visibleRect = textView.visibleRect
             
             textView.string = text
             
-            // Restore selection if we were editing
-            if wasFirstResponder && savedSelection.location <= text.count {
+            // Restore selection and scroll position
+            if savedSelection.location <= text.count {
                 textView.setSelectedRange(savedSelection)
             }
+            textView.scrollToVisible(visibleRect)
             
             // Apply syntax highlighting after text update
             if syntaxHighlightingEnabled, let language = language {
@@ -121,6 +123,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             }
             
             context.coordinator.updateBracketHighlighting()
+            context.coordinator.isUpdating = false
         }
     }
     
@@ -133,6 +136,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         weak var textView: NSTextView?
         var currentMatchingBracket: NSRange?
         var isUpdating = false
+        var isUserTyping = false
         
         init(_ parent: BracketHighlightTextEditor) {
             self.parent = parent
@@ -140,8 +144,19 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+            
+            // Prevent recursive updates
+            if isUpdating { return }
+            
+            isUserTyping = true
+            parent.text = textView.string  // Update the binding directly
             parent.onTextChange(textView.string)
             updateBracketHighlighting()
+            
+            // Reset typing flag after a delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.isUserTyping = false
+            }
         }
         
         func textViewDidChangeSelection(_ notification: Notification) {
