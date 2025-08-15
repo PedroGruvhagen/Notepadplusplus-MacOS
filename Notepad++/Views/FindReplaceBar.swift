@@ -128,6 +128,12 @@ struct FindReplaceBar: View {
         .onAppear {
             isFindFocused = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .findNext)) { _ in
+            findNext()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .findPrevious)) { _ in
+            findPrevious()
+        }
     }
     
     
@@ -264,4 +270,7 @@ struct FindReplaceBar: View {
 extension Notification.Name {
     static let highlightSearchResult = Notification.Name("highlightSearchResult")
     static let clearSearchHighlights = Notification.Name("clearSearchHighlights")
+    static let selectSearchResult = Notification.Name("selectSearchResult")
+    static let showFind = Notification.Name("showFind")
+    static let showReplace = Notification.Name("showReplace")
 }

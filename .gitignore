@@ -103,6 +103,7 @@ iOSInjectionProject/
 *.md
 !README.md
 !CONTRIBUTING.md
+!AGENT.md
 
 # Icon must end with two \r
 Icon

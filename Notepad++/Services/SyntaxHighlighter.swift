@@ -10,7 +10,7 @@ import SwiftUI
 import AppKit
 
 class SyntaxHighlighter: ObservableObject {
-    private let languageManager = LanguageManager.shared
+    private let languageManager = OldLanguageManager.shared
     
     func highlightedText(for content: String, language: LanguageDefinition?) -> AttributedString {
         guard let language = language else {

@@ -19,7 +19,6 @@ class Document: ObservableObject, Identifiable {
     @Published var language: LanguageDefinition?
     
     private var lastSavedContent: String
-    private let languageManager = LanguageManager.shared
     
     init(content: String = "", filePath: URL? = nil) {
         self.content = content
@@ -29,7 +28,13 @@ class Document: ObservableObject, Identifiable {
         if let path = filePath {
             self.fileName = path.lastPathComponent
             self.fileExtension = path.pathExtension.isEmpty ? nil : path.pathExtension
-            self.language = languageManager.detectLanguage(for: path)
+            // Use the new LanguageManager to detect language
+            if let nppLanguage = LanguageManager.shared.detectLanguage(for: path.lastPathComponent) {
+                self.language = nppLanguage.toLanguageDefinition()
+            } else {
+                // Default to plain text if no language detected
+                self.language = nil
+            }
         } else {
             self.fileName = "Untitled"
             self.fileExtension = nil
@@ -60,7 +65,13 @@ class Document: ObservableObject, Identifiable {
         filePath = url
         fileName = url.lastPathComponent
         fileExtension = url.pathExtension.isEmpty ? nil : url.pathExtension
-        language = languageManager.detectLanguage(for: url)
+        // Use the new LanguageManager to detect language
+        if let nppLanguage = LanguageManager.shared.detectLanguage(for: url.lastPathComponent) {
+            language = nppLanguage.toLanguageDefinition()
+        } else {
+            // Default to plain text if no language detected
+            language = nil
+        }
         try await save()
     }
     
