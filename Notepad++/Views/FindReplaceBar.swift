@@ -130,17 +130,6 @@ struct FindReplaceBar: View {
         }
     }
     
-    private func updateSearchResults() {
-        guard !searchText.isEmpty else {
-            totalMatches = 0
-            currentMatch = 0
-            return
-        }
-        
-        let matches = findAllMatches()
-        totalMatches = matches.count
-        currentMatch = matches.isEmpty ? 0 : 1
-    }
     
     private func findAllMatches() -> [NSRange] {
         guard !searchText.isEmpty else { return [] }
@@ -180,8 +169,18 @@ struct FindReplaceBar: View {
             currentMatch = 1
         }
         
-        // Here we would scroll to and select the match
-        // This needs integration with the text editor
+        // Send notification to highlight and scroll to match
+        if currentMatch > 0 && currentMatch <= matches.count {
+            NotificationCenter.default.post(
+                name: .highlightSearchResult,
+                object: nil,
+                userInfo: [
+                    "ranges": matches,
+                    "currentIndex": currentMatch - 1,
+                    "range": matches[currentMatch - 1]
+                ]
+            )
+        }
     }
     
     private func findPrevious() {
@@ -194,7 +193,44 @@ struct FindReplaceBar: View {
             currentMatch = matches.count
         }
         
-        // Here we would scroll to and select the match
+        // Send notification to highlight and scroll to match
+        if currentMatch > 0 && currentMatch <= matches.count {
+            NotificationCenter.default.post(
+                name: .highlightSearchResult,
+                object: nil,
+                userInfo: [
+                    "ranges": matches,
+                    "currentIndex": currentMatch - 1,
+                    "range": matches[currentMatch - 1]
+                ]
+            )
+        }
+    }
+    
+    private func updateSearchResults() {
+        guard !searchText.isEmpty else {
+            totalMatches = 0
+            currentMatch = 0
+            // Clear highlights
+            NotificationCenter.default.post(name: .clearSearchHighlights, object: nil)
+            return
+        }
+        
+        let matches = findAllMatches()
+        totalMatches = matches.count
+        currentMatch = matches.isEmpty ? 0 : 1
+        
+        // Send notification to highlight all matches
+        if !matches.isEmpty {
+            NotificationCenter.default.post(
+                name: .highlightSearchResult,
+                object: nil,
+                userInfo: [
+                    "ranges": matches,
+                    "currentIndex": 0
+                ]
+            )
+        }
     }
     
     private func replaceNext() {
@@ -223,4 +259,9 @@ struct FindReplaceBar: View {
         document.updateContent(newContent as String)
         updateSearchResults()
     }
+}
+
+extension Notification.Name {
+    static let highlightSearchResult = Notification.Name("highlightSearchResult")
+    static let clearSearchHighlights = Notification.Name("clearSearchHighlights")
 }

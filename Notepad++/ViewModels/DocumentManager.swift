@@ -80,17 +80,22 @@ class DocumentManager: ObservableObject {
     }
     
     func saveDocumentAs(_ tab: EditorTab) async {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.text]
-        panel.nameFieldStringValue = tab.document.fileName
-        
-        let response = await panel.begin()
-        if response == .OK, let url = panel.url {
-            do {
-                try await tab.document.saveAs(to: url)
-                addToRecentFiles(url)
-            } catch {
-                print("Error saving document: \(error)")
+        await MainActor.run {
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [.text]
+            panel.nameFieldStringValue = tab.document.fileName
+            
+            panel.begin { response in
+                if response == .OK, let url = panel.url {
+                    Task {
+                        do {
+                            try await tab.document.saveAs(to: url)
+                            self.addToRecentFiles(url)
+                        } catch {
+                            print("Error saving document: \(error)")
+                        }
+                    }
+                }
             }
         }
     }
