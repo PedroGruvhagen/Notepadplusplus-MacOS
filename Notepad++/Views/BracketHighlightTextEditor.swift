@@ -20,6 +20,11 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
     var showIndentGuides: Bool = true
     var caretWidth: CGFloat = 1.0
     var scrollBeyondLastLine: Bool = false
+    var tabSize: Int = 4
+    var replaceTabsBySpaces: Bool = false
+    var maintainIndent: Bool = true
+    var autoIndent: Bool = true
+    var smartIndent: Bool = false
     let language: LanguageDefinition?
     let syntaxHighlightingEnabled: Bool
     let onTextChange: ((String) -> Void)?
@@ -93,6 +98,20 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         context.coordinator.currentLineColor = currentLineColor
         context.coordinator.showIndentGuides = showIndentGuides
         context.coordinator.scrollBeyondLastLine = scrollBeyondLastLine
+        context.coordinator.tabSize = tabSize
+        context.coordinator.replaceTabsBySpaces = replaceTabsBySpaces
+        context.coordinator.maintainIndent = maintainIndent
+        context.coordinator.autoIndent = autoIndent
+        context.coordinator.smartIndent = smartIndent
+        
+        // Configure indentation settings
+        textView.configureIndentationSettings(
+            tabSize: tabSize,
+            replaceTabsBySpaces: replaceTabsBySpaces,
+            maintainIndent: maintainIndent,
+            autoIndent: autoIndent,
+            smartIndent: smartIndent
+        )
         
         // Set delegate
         textView.delegate = context.coordinator
@@ -154,6 +173,20 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         context.coordinator.currentLineColor = currentLineColor
         context.coordinator.showIndentGuides = showIndentGuides
         context.coordinator.scrollBeyondLastLine = scrollBeyondLastLine
+        context.coordinator.tabSize = tabSize
+        context.coordinator.replaceTabsBySpaces = replaceTabsBySpaces
+        context.coordinator.maintainIndent = maintainIndent
+        context.coordinator.autoIndent = autoIndent
+        context.coordinator.smartIndent = smartIndent
+        
+        // Update indentation settings
+        textView.configureIndentationSettings(
+            tabSize: tabSize,
+            replaceTabsBySpaces: replaceTabsBySpaces,
+            maintainIndent: maintainIndent,
+            autoIndent: autoIndent,
+            smartIndent: smartIndent
+        )
         
         // Only update text if it's different AND we're not typing AND the new text is actually newer
         if !context.coordinator.isUserTyping && textView.string != text {
@@ -205,6 +238,11 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         var showIndentGuides = true
         var scrollBeyondLastLine = false
         var currentLineRange: NSRange?
+        var tabSize = 4
+        var replaceTabsBySpaces = false
+        var maintainIndent = true
+        var autoIndent = true
+        var smartIndent = false
         
         init(_ parent: BracketHighlightTextEditor) {
             self.parent = parent
