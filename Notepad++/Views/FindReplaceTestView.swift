@@ -149,7 +149,7 @@ struct FindReplaceTestView: View {
         
         // Test 6: Replace All
         testResults.append("🔄 Test 6: Replace All")
-        let (replacedAll, count) = searchManager.replaceAll(in: testDoc)
+        let (_, count) = searchManager.replaceAll(in: testDoc)
         testResults.append("  Replaced \(count) occurrences")
         
         testResults.append("\n✅ All tests completed!")
