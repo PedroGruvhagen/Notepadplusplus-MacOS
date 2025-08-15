@@ -12,7 +12,11 @@ struct EditorView: View {
     @FocusState private var isEditorFocused: Bool
     @ObservedObject private var settings = AppSettings.shared
     @StateObject private var searchManager = AdvancedSearchManager.shared
-    @State private var enableSyntaxHighlighting = true
+    
+    // Performance optimizations
+    private var optimizedSettings: OptimizedSettings {
+        document.getOptimizedSettings()
+    }
     @State private var showFindReplace = false
     @State private var showReplaceBar = false
     @State private var showFindInFiles = false
@@ -32,7 +36,7 @@ struct EditorView: View {
                 )
             }
             
-            if settings.showLineNumbers {
+            if optimizedSettings.showLineNumbers {
                 HStack(alignment: .top, spacing: 0) {
                     EnhancedLineNumberView(document: document, fontSize: CGFloat(settings.fontSize))
                         .background(Color(NSColor.controlBackgroundColor))
@@ -62,7 +66,7 @@ struct EditorView: View {
                         autoIndent: settings.autoIndent,
                         smartIndent: settings.smartIndent,
                         language: document.language,
-                        syntaxHighlightingEnabled: enableSyntaxHighlighting && settings.syntaxHighlighting,
+                        syntaxHighlightingEnabled: optimizedSettings.syntaxHighlighting,
                         onTextChange: nil
                     )
                     .focused($isEditorFocused)
@@ -94,7 +98,7 @@ struct EditorView: View {
                     autoIndent: settings.autoIndent,
                     smartIndent: settings.smartIndent,
                     language: document.language,
-                    syntaxHighlightingEnabled: settings.syntaxHighlighting,
+                    syntaxHighlightingEnabled: optimizedSettings.syntaxHighlighting,
                     onTextChange: nil
                 )
                 .focused($isEditorFocused)

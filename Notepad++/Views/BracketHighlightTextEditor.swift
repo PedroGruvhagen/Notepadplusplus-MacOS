@@ -125,6 +125,11 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         
         context.coordinator.textView = textView
         
+        // Apply performance optimizations if needed
+        if let document = context.coordinator.getDocument() {
+            PerformanceManager.shared.optimizeTextView(textView, forLargeFile: document.isLargeFile)
+        }
+        
         // Configure auto-completion
         if AppSettings.shared.enableAutoCompletion {
             AutoCompletionEngine.shared.configure(for: textView)
@@ -252,6 +257,12 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         
         init(_ parent: BracketHighlightTextEditor) {
             self.parent = parent
+        }
+        
+        func getDocument() -> Document? {
+            // This would need to be passed in or accessed from the parent view
+            // For now, return nil as we don't have direct access to the document
+            return nil
         }
         
         func textDidChange(_ notification: Notification) {
