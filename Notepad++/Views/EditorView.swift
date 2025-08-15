@@ -14,11 +14,22 @@ struct EditorView: View {
     @State private var showLineNumbers = true
     @State private var wordWrap = true
     @State private var enableSyntaxHighlighting = true
+    @State private var showFindReplace = false
+    @State private var showReplaceBar = false
     
     private let syntaxHighlighter = SyntaxHighlighter()
     
     var body: some View {
         VStack(spacing: 0) {
+            // Find/Replace bar
+            if showFindReplace {
+                FindReplaceBar(
+                    document: document,
+                    showReplace: $showReplaceBar,
+                    isVisible: $showFindReplace
+                )
+            }
+            
             if showLineNumbers {
                 HStack(alignment: .top, spacing: 0) {
                     LineNumberView(text: document.content, fontSize: fontSize)
@@ -64,6 +75,14 @@ struct EditorView: View {
             }
             
             StatusBarView(document: document)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showFind)) { _ in
+            showFindReplace = true
+            showReplaceBar = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showReplace)) { _ in
+            showFindReplace = true
+            showReplaceBar = true
         }
         .toolbar {
             ToolbarItemGroup {
