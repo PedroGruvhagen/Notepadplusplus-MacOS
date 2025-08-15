@@ -1,10 +1,10 @@
 # Notepad++ for macOS (Unofficial PORT)
 
-A DIRECT PORT of Notepad++ ARM version to macOS, built with Swift and SwiftUI, optimized for Apple Silicon.
+A DIRECT PORT of Notepad++ ARM version to macOS, built with Swift and SwiftUI, optimized exclusively for Apple Silicon.
 
 ## 🎯 Project Goal
 
-PORT the exact functionality of Notepad++ Windows ARM version to macOS with a fully native experience that runs seamlessly on Apple Silicon (M1/M2/M3) Macs.
+PORT the exact functionality of Notepad++ Windows ARM version to macOS with a fully native experience that runs seamlessly on Apple Silicon (M1/M2/M3/M4) Macs.
 
 **THIS IS A PORT**: We are directly porting features, settings, and behaviors from the original Notepad++ source code, not creating a "similar" or "inspired by" application.
 
@@ -33,34 +33,84 @@ We're committed to respecting your project and will make any changes you request
 
 ## 🚀 Features
 
-### Currently Implemented
-- ✅ Multi-tab interface
-- ✅ Native Apple Silicon support (ARM64)
-- ✅ File operations (New, Open, Save, Save As)
-- ✅ Line numbers
-- ✅ Status bar with line/column info
-- ✅ Font size adjustment
-- ✅ Modified indicator
-- ✅ File type detection with icons
+### Core Editing ✅
+- ✅ Multi-tab interface with tab management
+- ✅ File operations (New, Open, Save, Save As, Save All)
+- ✅ Close Tab, Close All Tabs, Close Other Tabs
+- ✅ Recent files menu
+- ✅ Line numbers display
+- ✅ Status bar with cursor position
+- ✅ Modified indicator with asterisk
+- ✅ Undo/Redo functionality
+- ✅ Cut/Copy/Paste/Select All
+- ✅ Word wrap toggle
+- ✅ Bracket matching (jump to matching bracket)
 
-### Roadmap (Matching Notepad++ ARM)
-- [ ] Syntax highlighting for 70+ languages
-- [ ] Find & Replace with regex
-- [ ] Multi-cursor editing
-- [ ] Code folding
-- [ ] Split view
-- [ ] Macro recording
-- [ ] Plugin system
-- [ ] Theme support
-- [ ] Session management
-- [ ] Auto-completion
-- [ ] Function list
-- [ ] Document map
+### Search & Replace ✅
+- ✅ Find functionality with live search
+- ✅ Find & Replace with Replace All
+- ✅ Case sensitive search
+- ✅ Whole word search
+- ✅ Regular expression search
+- ✅ Search highlighting with lifecycle management
+- ✅ Current match highlighting
+- ✅ Match counter
+- ✅ Find Next/Previous navigation
+- ✅ Mark All occurrences
+- ✅ Bookmarks with navigation
+
+### Syntax & Languages ✅
+- ✅ Syntax highlighting for 94 languages (full Notepad++ parity)
+- ✅ Language auto-detection by file extension
+- ✅ Manual language selection via menu
+- ✅ All Notepad++ language definitions ported
+- ✅ Keyword highlighting
+- ✅ Comment highlighting
+- ✅ String literal highlighting
+- ✅ Number highlighting
+- ✅ Operator highlighting
+
+### Advanced Features ✅
+- ✅ Code folding support
+- ✅ Find in Files functionality
+- ✅ Advanced search options
+- ✅ Preferences/Settings window
+- ✅ Font customization
+- ✅ Tab size configuration
+- ✅ Auto-indentation settings
+
+### Platform Integration ✅
+- ✅ Native Apple Silicon support (ARM64 only)
+- ✅ macOS native menus and keyboard shortcuts
+- ✅ Native file dialogs
+- ✅ Drag and drop file support
+- ✅ macOS appearance (light/dark mode)
+
+### In Progress 🚧
+- 🚧 EOL type detection and conversion
+- 🚧 File encoding detection (UTF-8, UTF-16, etc.)
+- 🚧 External file change detection
+- 🚧 Session management (persist/restore open files)
+- 🚧 Theme import from Notepad++
+- 🚧 Auto-indentation per language
+- 🚧 Settings persistence
+
+### Planned 📋
+- 📋 Split view (horizontal/vertical)
+- 📋 Multi-cursor editing
+- 📋 Column mode editing
+- 📋 Macro recording and playback
+- 📋 Plugin system architecture
+- 📋 Auto-completion
+- 📋 Function list panel
+- 📋 Document map
+- 📋 Print functionality
+- 📋 Export as HTML/RTF
 
 ## 💻 System Requirements
 
 - macOS 14.0 (Sonoma) or later
-- Apple Silicon Mac (M1/M2/M3) or Intel Mac
+- Apple Silicon Mac (M1/M2/M3/M4) - **Apple Silicon ONLY**
 - Xcode 16.0+ (for building from source)
 
 ## 🔨 Building from Source
@@ -107,10 +157,19 @@ The original Notepad++ is licensed under GPL v3.
 | Feature | Notepad++ Windows | This macOS Version |
 |---------|-------------------|-------------------|
 | Multi-tab | ✅ | ✅ |
-| Syntax Highlighting | ✅ | 🚧 In Progress |
-| Find/Replace | ✅ | 🚧 In Progress |
+| Syntax Highlighting (94 languages) | ✅ | ✅ |
+| Find/Replace | ✅ | ✅ |
+| Regular Expression Search | ✅ | ✅ |
+| Code Folding | ✅ | ✅ |
+| Bookmarks | ✅ | ✅ |
+| Save All/Close All | ✅ | ✅ |
+| Settings/Preferences | ✅ | ✅ |
+| EOL Detection | ✅ | 🚧 In Progress |
+| Encoding Detection | ✅ | 🚧 In Progress |
+| Session Management | ✅ | 🚧 In Progress |
 | Plugins | ✅ | 📋 Planned |
 | Themes | ✅ | 📋 Planned |
+| Macros | ✅ | 📋 Planned |
 | Apple Silicon Native | N/A | ✅ |
 | macOS Integration | N/A | ✅ |
 

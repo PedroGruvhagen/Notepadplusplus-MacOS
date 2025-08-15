@@ -101,6 +101,48 @@ struct ContentView: View {
                 }
             }
         }
+        
+        NotificationCenter.default.addObserver(
+            forName: .saveAllDocuments,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                await documentManager.saveAllDocuments()
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .closeTab,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                if let activeTab = documentManager.activeTab {
+                    documentManager.closeTab(activeTab)
+                }
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .closeAllTabs,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                documentManager.closeAllTabs()
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .closeOtherTabs,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                documentManager.closeOtherTabs()
+            }
+        }
     }
 }
 

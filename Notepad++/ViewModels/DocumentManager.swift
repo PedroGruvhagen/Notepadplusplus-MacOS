@@ -127,9 +127,42 @@ class DocumentManager: ObservableObject {
         }
     }
     
+    func saveAllDocuments() async {
+        for tab in tabs where tab.document.isModified {
+            if tab.document.filePath != nil {
+                do {
+                    try await tab.document.save()
+                } catch {
+                    // Show error alert
+                    await MainActor.run {
+                        let alert = NSAlert()
+                        alert.messageText = "Save Failed"
+                        alert.informativeText = "Could not save \(tab.document.fileName): \(error.localizedDescription)"
+                        alert.alertStyle = .critical
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                    }
+                }
+            } else {
+                // For untitled documents, show save dialog
+                await saveDocumentAs(for: tab)
+            }
+        }
+    }
+    
     func closeAllTabs() {
         tabs.removeAll()
         createNewDocument()
+    }
+    
+    func closeOtherTabs() {
+        guard let currentTab = activeTab else { return }
+        tabs = [currentTab]
+        activeTab = currentTab
+    }
+    
+    var hasModifiedDocuments: Bool {
+        tabs.contains { $0.document.isModified }
     }
     
     private func loadRecentFiles() {
