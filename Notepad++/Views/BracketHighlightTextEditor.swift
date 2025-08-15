@@ -313,15 +313,18 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             let text = textView.string
             let selectedRange = textView.selectedRange()
             
-            // Remove previous bracket highlighting
-            if let previousMatch = currentMatchingBracket {
-                textView.textStorage?.removeAttribute(.backgroundColor,
-                                                     range: previousMatch)
+            // Remove previous bracket highlighting (with bounds checking)
+            if let previousMatch = currentMatchingBracket,
+               let textStorage = textView.textStorage,
+               previousMatch.location + previousMatch.length <= text.count {
+                textStorage.removeAttribute(.backgroundColor, range: previousMatch)
             }
             
-            // Clear all bracket highlighting first
-            textView.textStorage?.removeAttribute(.backgroundColor,
-                                                 range: NSRange(location: 0, length: text.count))
+            // Clear all bracket highlighting first (safely)
+            if let textStorage = textView.textStorage, !text.isEmpty {
+                let safeRange = NSRange(location: 0, length: text.count)
+                textStorage.removeAttribute(.backgroundColor, range: safeRange)
+            }
             
             // Apply syntax highlighting if enabled
             if parent.syntaxHighlightingEnabled, let language = parent.language {
@@ -513,20 +516,27 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             let text = textView.string as NSString
             let selectedRange = textView.selectedRange()
             
-            // Remove previous line highlight
+            // Remove previous line highlight (with bounds checking)
             if let previousRange = currentLineRange,
-               let textStorage = textView.textStorage {
+               let textStorage = textView.textStorage,
+               previousRange.location + previousRange.length <= text.length {
                 textStorage.removeAttribute(.backgroundColor, range: previousRange)
             }
+            
+            // Guard against invalid selection range
+            guard selectedRange.location <= text.length else { return }
             
             // Find current line range
             var lineStart = 0
             var lineEnd = 0
             var contentsEnd = 0
-            text.getLineStart(&lineStart, end: &lineEnd, contentsEnd: &contentsEnd,
-                            for: NSRange(location: selectedRange.location, length: 0))
+            let safeRange = NSRange(location: min(selectedRange.location, text.length), length: 0)
+            text.getLineStart(&lineStart, end: &lineEnd, contentsEnd: &contentsEnd, for: safeRange)
             
-            let lineRange = NSRange(location: lineStart, length: lineEnd - lineStart)
+            // Ensure the range is valid
+            let lineRange = NSRange(location: lineStart, length: max(0, lineEnd - lineStart))
+            guard lineRange.location + lineRange.length <= text.length else { return }
+            
             currentLineRange = lineRange
             
             // Apply highlight to current line
