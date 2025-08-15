@@ -58,6 +58,17 @@ class DocumentManager: ObservableObject {
             return
         }
         
+        // Check if file is large and warn user
+        if PerformanceManager.shared.isLargeFile(at: url) {
+            let shouldContinue = await withCheckedContinuation { continuation in
+                PerformanceManager.shared.showLargeFileWarning(for: url) { result in
+                    continuation.resume(returning: result)
+                }
+            }
+            
+            guard shouldContinue else { return }
+        }
+        
         do {
             let document = try await Document.open(from: url)
             let tab = EditorTab(document: document)
