@@ -10,9 +10,8 @@ import SwiftUI
 struct EditorView: View {
     @ObservedObject var document: Document
     @FocusState private var isEditorFocused: Bool
+    @ObservedObject private var settings = AppSettings.shared
     @State private var fontSize: CGFloat = 13
-    @State private var showLineNumbers = true
-    @State private var wordWrap = true
     @State private var enableSyntaxHighlighting = true
     @State private var showFindReplace = false
     @State private var showReplaceBar = false
@@ -30,7 +29,7 @@ struct EditorView: View {
                 )
             }
             
-            if showLineNumbers {
+            if settings.showLineNumbers {
                 HStack(alignment: .top, spacing: 0) {
                     LineNumberView(text: document.content, fontSize: fontSize)
                         .frame(width: 50)
@@ -63,7 +62,7 @@ struct EditorView: View {
                     ),
                     language: document.language,
                     fontSize: fontSize,
-                    syntaxHighlightingEnabled: enableSyntaxHighlighting,
+                    syntaxHighlightingEnabled: settings.syntaxHighlighting,
                     onTextChange: { newText in
                         document.updateContent(newText)
                     }
@@ -86,18 +85,18 @@ struct EditorView: View {
         }
         .toolbar {
             ToolbarItemGroup {
-                Button(action: { showLineNumbers.toggle() }) {
-                    Image(systemName: "number")
+                Button(action: { settings.showLineNumbers.toggle() }) {
+                    Image(systemName: settings.showLineNumbers ? "number.square.fill" : "number.square")
                 }
                 .help("Toggle Line Numbers")
                 
-                Button(action: { wordWrap.toggle() }) {
-                    Image(systemName: wordWrap ? "text.alignleft" : "arrow.left.and.right")
+                Button(action: { settings.wordWrap.toggle() }) {
+                    Image(systemName: settings.wordWrap ? "text.wrap" : "text.nowrap")
                 }
                 .help("Toggle Word Wrap")
                 
-                Button(action: { enableSyntaxHighlighting.toggle() }) {
-                    Image(systemName: enableSyntaxHighlighting ? "paintbrush.fill" : "paintbrush")
+                Button(action: { settings.syntaxHighlighting.toggle() }) {
+                    Image(systemName: settings.syntaxHighlighting ? "paintbrush.fill" : "paintbrush")
                 }
                 .help("Toggle Syntax Highlighting")
                 
