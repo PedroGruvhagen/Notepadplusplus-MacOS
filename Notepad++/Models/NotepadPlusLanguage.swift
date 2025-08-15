@@ -10,7 +10,7 @@ import Foundation
 
 /// Complete language definition matching Notepad++ structure
 struct NotepadPlusLanguage: Codable, Identifiable {
-    let id = UUID()
+    var id = UUID()
     let name: String
     let extensions: [String]
     let commentLine: String?

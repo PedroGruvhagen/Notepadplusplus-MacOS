@@ -10,7 +10,7 @@ import Foundation
 // MARK: - Search Result Models
 
 struct FileSearchResult: Identifiable, Hashable {
-    let id = UUID()
+    var id = UUID()
     let filePath: URL
     let fileName: String
     let matches: [LineMatch]
@@ -21,7 +21,7 @@ struct FileSearchResult: Identifiable, Hashable {
 }
 
 struct LineMatch: Identifiable, Hashable {
-    let id = UUID()
+    var id = UUID()
     let lineNumber: Int
     let lineContent: String
     let matchRanges: [NSRange]
@@ -32,7 +32,7 @@ struct LineMatch: Identifiable, Hashable {
 // MARK: - Bookmark Model
 
 struct Bookmark: Identifiable, Codable, Hashable {
-    let id = UUID()
+    var id = UUID()
     let filePath: URL
     let lineNumber: Int
     let lineContent: String
@@ -51,7 +51,7 @@ struct Bookmark: Identifiable, Codable, Hashable {
 // MARK: - Search History
 
 struct SearchHistoryItem: Identifiable, Codable {
-    let id = UUID()
+    var id = UUID()
     let searchText: String
     let isRegex: Bool
     let isCaseSensitive: Bool

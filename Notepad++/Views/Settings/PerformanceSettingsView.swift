@@ -36,9 +36,9 @@ struct PerformanceSettingsView: View {
                     
                     // Enable Large File Restriction - matches IDC_CHECK_PERFORMANCE_ENABLE
                     Toggle("Enable Large File Restriction (no syntax highlighting)", isOn: $enableLargeFileRestriction)
-                        .onChange(of: enableLargeFileRestriction) { newValue in
-                            UserDefaults.standard.set(newValue, forKey: "enableLargeFileRestriction")
-                            settings.disableHighlightingForLargeFiles = newValue
+                        .onChange(of: enableLargeFileRestriction) {
+                            UserDefaults.standard.set(enableLargeFileRestriction, forKey: "enableLargeFileRestriction")
+                            settings.disableHighlightingForLargeFiles = enableLargeFileRestriction
                         }
                     
                     // Define Large File Size - matches IDC_EDIT_PERFORMANCE_FILESIZE
@@ -48,8 +48,8 @@ struct PerformanceSettingsView: View {
                             .frame(width: 60)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .disabled(!enableLargeFileRestriction)
-                            .onChange(of: largeFileSize) { newValue in
-                                let clampedValue = min(max(newValue, 1), 2046)
+                            .onChange(of: largeFileSize) {
+                                let clampedValue = min(max(largeFileSize, 1), 2046)
                                 UserDefaults.standard.set(clampedValue, forKey: "largeFileSize")
                                 settings.largeFileSize = clampedValue
                             }
@@ -61,41 +61,41 @@ struct PerformanceSettingsView: View {
                         // Deactivate Word Wrap globally - matches IDC_CHECK_PERFORMANCE_DEACTIVATEWORDWRAP
                         Toggle("Deactivate Word Wrap globally", isOn: $deactivateWordWrapGlobally)
                             .disabled(!enableLargeFileRestriction)
-                            .onChange(of: deactivateWordWrapGlobally) { newValue in
-                                UserDefaults.standard.set(newValue, forKey: "deactivateWordWrapGlobally")
+                            .onChange(of: deactivateWordWrapGlobally) {
+                                UserDefaults.standard.set(deactivateWordWrapGlobally, forKey: "deactivateWordWrapGlobally")
                             }
                             .padding(.leading, 40)
                         
                         // Allow Auto-Completion - matches IDC_CHECK_PERFORMANCE_ALLOWAUTOCOMPLETION
                         Toggle("Allow Auto-Completion", isOn: $allowAutoCompletion)
                             .disabled(!enableLargeFileRestriction)
-                            .onChange(of: allowAutoCompletion) { newValue in
-                                UserDefaults.standard.set(newValue, forKey: "allowAutoCompletionForLargeFiles")
-                                settings.disableAutoCompletionForLargeFiles = !newValue
+                            .onChange(of: allowAutoCompletion) {
+                                UserDefaults.standard.set(allowAutoCompletion, forKey: "allowAutoCompletionForLargeFiles")
+                                settings.disableAutoCompletionForLargeFiles = !allowAutoCompletion
                             }
                             .padding(.leading, 40)
                         
                         // Allow Smart Highlighting - matches IDC_CHECK_PERFORMANCE_ALLOWSMARTHILITE
                         Toggle("Allow Smart Highlighting", isOn: $allowSmartHighlighting)
                             .disabled(!enableLargeFileRestriction)
-                            .onChange(of: allowSmartHighlighting) { newValue in
-                                UserDefaults.standard.set(newValue, forKey: "allowSmartHighlightingForLargeFiles")
+                            .onChange(of: allowSmartHighlighting) {
+                                UserDefaults.standard.set(allowSmartHighlighting, forKey: "allowSmartHighlightingForLargeFiles")
                             }
                             .padding(.leading, 40)
                         
                         // Allow Brace Match - matches IDC_CHECK_PERFORMANCE_ALLOWBRACEMATCH
                         Toggle("Allow Brace Match", isOn: $allowBraceMatch)
                             .disabled(!enableLargeFileRestriction)
-                            .onChange(of: allowBraceMatch) { newValue in
-                                UserDefaults.standard.set(newValue, forKey: "allowBraceMatchForLargeFiles")
+                            .onChange(of: allowBraceMatch) {
+                                UserDefaults.standard.set(allowBraceMatch, forKey: "allowBraceMatchForLargeFiles")
                             }
                             .padding(.leading, 40)
                         
                         // Allow URL Clickable Link - matches IDC_CHECK_PERFORMANCE_ALLOWCLICKABLELINK
                         Toggle("Allow URL Clickable Link", isOn: $allowClickableLink)
                             .disabled(!enableLargeFileRestriction)
-                            .onChange(of: allowClickableLink) { newValue in
-                                UserDefaults.standard.set(newValue, forKey: "allowClickableLinkForLargeFiles")
+                            .onChange(of: allowClickableLink) {
+                                UserDefaults.standard.set(allowClickableLink, forKey: "allowClickableLinkForLargeFiles")
                             }
                             .padding(.leading, 40)
                     }
@@ -104,8 +104,8 @@ struct PerformanceSettingsView: View {
                     
                     // Suppress warning when opening ≥2GB files - matches IDC_CHECK_PERFORMANCE_SUPPRESS2GBWARNING
                     Toggle("Suppress warning when opening ≥2GB files", isOn: $suppress2GBWarning)
-                        .onChange(of: suppress2GBWarning) { newValue in
-                            UserDefaults.standard.set(newValue, forKey: "suppress2GBWarning")
+                        .onChange(of: suppress2GBWarning) {
+                            UserDefaults.standard.set(suppress2GBWarning, forKey: "suppress2GBWarning")
                         }
                 }
                 .padding()

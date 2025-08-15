@@ -100,8 +100,8 @@ struct FindInFilesView: View {
                 
                 TextField("*.swift, *.txt", text: $fileFilter)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onChange(of: fileFilter) { newValue in
-                        configuration.fileFilters = newValue
+                    .onChange(of: fileFilter) {
+                        configuration.fileFilters = fileFilter
                             .split(separator: ",")
                             .map { $0.trimmingCharacters(in: .whitespaces) }
                     }

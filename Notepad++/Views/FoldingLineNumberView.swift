@@ -93,7 +93,7 @@ struct EnhancedLineNumberView: View {
                 .onAppear {
                     updateFoldingRegions()
                 }
-                .onChange(of: document.content) { _ in
+                .onChange(of: document.content) {
                     updateFoldingRegions()
                 }
             } else {
