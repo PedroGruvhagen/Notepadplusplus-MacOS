@@ -16,6 +16,13 @@ struct Notepad__App: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
+            CommandGroup(after: .appSettings) {
+                Button("Preferences...") {
+                    NotificationCenter.default.post(name: .showPreferences, object: nil)
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+            
             CommandGroup(replacing: .newItem) {
                 Button("New Tab") {
                     NotificationCenter.default.post(name: .newDocument, object: nil)
@@ -62,6 +69,7 @@ struct Notepad__App: App {
 }
 
 extension Notification.Name {
+    static let showPreferences = Notification.Name("showPreferences")
     static let newDocument = Notification.Name("newDocument")
     static let saveDocument = Notification.Name("saveDocument")
     static let saveDocumentAs = Notification.Name("saveDocumentAs")
