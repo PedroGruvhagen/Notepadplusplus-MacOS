@@ -9,7 +9,9 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var documentManager = DocumentManager()
+    @StateObject private var settingsManager = SettingsManager.shared
     @State private var searchText = ""
+    @State private var isShowingSettings = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -54,10 +56,47 @@ struct ContentView: View {
         .onAppear {
             setupMenuCommands()
         }
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsView()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showPreferences)) { _ in
+            isShowingSettings = true
+        }
     }
     
     private func setupMenuCommands() {
-        // This will be used for menu bar customization
+        // Listen for menu commands
+        NotificationCenter.default.addObserver(
+            forName: .newDocument,
+            object: nil,
+            queue: .main
+        ) { _ in
+            documentManager.createNewDocument()
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .saveDocument,
+            object: nil,
+            queue: .main
+        ) { _ in
+            if let activeTab = documentManager.activeTab {
+                Task {
+                    await documentManager.saveDocument(activeTab)
+                }
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .saveDocumentAs,
+            object: nil,
+            queue: .main
+        ) { _ in
+            if let activeTab = documentManager.activeTab {
+                Task {
+                    await documentManager.saveDocumentAs(activeTab)
+                }
+            }
+        }
     }
 }
 
