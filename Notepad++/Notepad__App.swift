@@ -231,6 +231,41 @@ struct Notepad__App: App {
             // View menu - matching Notepad++ structure
             CommandMenu("View") {
                 Button(action: {
+                    AppSettings.shared.showToolbar.toggle()
+                }) {
+                    HStack {
+                        Text("Show Toolbar")
+                        if AppSettings.shared.showToolbar {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                
+                Button(action: {
+                    AppSettings.shared.showStatusBar.toggle()
+                }) {
+                    HStack {
+                        Text("Show Status Bar")
+                        if AppSettings.shared.showStatusBar {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                
+                Button(action: {
+                    AppSettings.shared.showTabBar.toggle()
+                }) {
+                    HStack {
+                        Text("Show Tab Bar")
+                        if AppSettings.shared.showTabBar {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                
+                Divider()
+                
+                Button(action: {
                     AppSettings.shared.wordWrap.toggle()
                 }) {
                     HStack {
