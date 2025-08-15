@@ -53,7 +53,7 @@ class DocumentManager: ObservableObject {
     @MainActor
     func openDocument(from url: URL) async {
         // Check if document is already open
-        if let existingTab = tabs.first(where: { $0.document.filePath == url }) {
+        if let existingTab = tabs.first(where: { $0.document.fileURL == url }) {
             activeTab = existingTab
             return
         }
@@ -78,7 +78,7 @@ class DocumentManager: ObservableObject {
     func saveDocument(_ tab: EditorTab) async {
         let document = tab.document
         
-        if document.filePath == nil {
+        if document.fileURL == nil {
             await saveDocumentAs(tab)
         } else {
             do {
@@ -130,7 +130,7 @@ class DocumentManager: ObservableObject {
     
     func saveAllDocuments() async {
         for tab in tabs where tab.document.isModified {
-            if tab.document.filePath != nil {
+            if tab.document.fileURL != nil {
                 do {
                     try await tab.document.save()
                 } catch {

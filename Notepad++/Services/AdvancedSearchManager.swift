@@ -276,10 +276,10 @@ class AdvancedSearchManager: ObservableObject {
     
     func toggleBookmark(for document: Document, at lineNumber: Int) {
         if let existingBookmark = bookmarks.first(where: { 
-            $0.filePath == document.filePath && $0.lineNumber == lineNumber 
+            $0.filePath == document.fileURL && $0.lineNumber == lineNumber 
         }) {
             removeBookmark(existingBookmark)
-        } else if let filePath = document.filePath {
+        } else if let filePath = document.fileURL {
             let lines = document.content.components(separatedBy: .newlines)
             let lineContent = lineNumber <= lines.count ? lines[lineNumber - 1] : ""
             
