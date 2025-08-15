@@ -111,7 +111,7 @@ struct EditorView: View {
                 .help("Toggle Line Numbers")
                 
                 Button(action: { settings.wordWrap.toggle() }) {
-                    Image(systemName: settings.wordWrap ? "text.wrap" : "text.nowrap")
+                    Image(systemName: settings.wordWrap ? "text.wrap" : "text.append")
                 }
                 .help("Toggle Word Wrap")
                 
