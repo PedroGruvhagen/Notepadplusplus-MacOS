@@ -19,28 +19,61 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
+        
+        // Create text view with proper setup
         let textView = NSTextView()
         
-        textView.delegate = context.coordinator
-        textView.isAutomaticQuoteSubstitutionEnabled = false
-        textView.isAutomaticSpellingCorrectionEnabled = false
-        textView.isRichText = true
+        // Essential properties for text to be visible and editable
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.isRichText = false  // Use plain text for now to avoid issues
+        textView.importsGraphics = false
         textView.allowsUndo = true
+        
+        // Text appearance
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        textView.string = text
         textView.textColor = NSColor.labelColor
         textView.backgroundColor = NSColor.textBackgroundColor
         textView.insertionPointColor = NSColor.labelColor
+        textView.selectedTextAttributes = [
+            .backgroundColor: NSColor.selectedTextBackgroundColor,
+            .foregroundColor: NSColor.selectedTextColor
+        ]
         
-        // Configure text container for word wrap
+        // Disable auto substitutions
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isAutomaticDataDetectionEnabled = false
+        textView.isAutomaticLinkDetectionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticTextCompletionEnabled = false
+        
+        // Set initial text
+        textView.string = text
+        
+        // Configure text container for proper layout
         if let textContainer = textView.textContainer {
+            textContainer.containerSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
             textContainer.widthTracksTextView = true
-            textContainer.containerSize = CGSize(width: scrollView.frame.width, height: CGFloat.greatestFiniteMagnitude)
+            textContainer.heightTracksTextView = false
         }
         
+        // Configure layout manager
+        textView.minSize = CGSize(width: 0, height: 0)
+        textView.maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        
+        // Set delegate
+        textView.delegate = context.coordinator
+        
+        // Configure scroll view
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
+        scrollView.borderType = .noBorder
         
         context.coordinator.textView = textView
         context.coordinator.updateBracketHighlighting()
@@ -59,16 +92,16 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         
-        // Only update text if it's actually different and not currently being edited
-        // This prevents overwriting user input while typing
-        if !context.coordinator.isUpdating && textView.string != text {
-            context.coordinator.isUpdating = true
+        // Update font if size changed
+        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        
+        // Only update text from the binding if we're not currently editing
+        // and the text is actually different
+        let isFirstResponder = textView.window?.firstResponder == textView
+        if !isFirstResponder && textView.string != text {
             textView.string = text
             context.coordinator.updateBracketHighlighting()
-            context.coordinator.isUpdating = false
         }
-        
-        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -87,11 +120,8 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            // Prevent feedback loop when updating from code
-            if !isUpdating {
-                parent.onTextChange(textView.string)
-                updateBracketHighlighting()
-            }
+            parent.onTextChange(textView.string)
+            updateBracketHighlighting()
         }
         
         func textViewDidChangeSelection(_ notification: Notification) {
