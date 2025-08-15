@@ -100,6 +100,45 @@ struct Notepad__App: App {
                     NotificationCenter.default.post(name: .findPrevious, object: nil)
                 }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
+                
+                Divider()
+                
+                Button("Find in Files...") {
+                    NotificationCenter.default.post(name: .showFindInFiles, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+                
+                Button("Mark All") {
+                    NotificationCenter.default.post(name: .markAll, object: nil)
+                }
+                .keyboardShortcut("m", modifiers: [.command, .option])
+                
+                Button("Clear Marks") {
+                    NotificationCenter.default.post(name: .clearMarks, object: nil)
+                }
+                .keyboardShortcut("m", modifiers: [.command, .shift, .option])
+                
+                Divider()
+                
+                Button("Toggle Bookmark") {
+                    NotificationCenter.default.post(name: .toggleBookmark, object: nil)
+                }
+                .keyboardShortcut("b", modifiers: .command)
+                
+                Button("Next Bookmark") {
+                    NotificationCenter.default.post(name: .nextBookmark, object: nil)
+                }
+                .keyboardShortcut("b", modifiers: [.command, .shift])
+                
+                Button("Previous Bookmark") {
+                    NotificationCenter.default.post(name: .previousBookmark, object: nil)
+                }
+                .keyboardShortcut("b", modifiers: [.command, .option])
+                
+                Button("Show Bookmarks...") {
+                    NotificationCenter.default.post(name: .showBookmarks, object: nil)
+                }
+                .keyboardShortcut("b", modifiers: [.command, .control])
             }
             
             // View menu - matching Notepad++ structure
@@ -215,4 +254,11 @@ extension Notification.Name {
     static let selectAll = Notification.Name("selectAll")
     static let foldAll = Notification.Name("foldAll")
     static let unfoldAll = Notification.Name("unfoldAll")
+    static let showFindInFiles = Notification.Name("showFindInFiles")
+    static let showBookmarks = Notification.Name("showBookmarks")
+    static let toggleBookmark = Notification.Name("toggleBookmark")
+    static let nextBookmark = Notification.Name("nextBookmark")
+    static let previousBookmark = Notification.Name("previousBookmark")
+    static let markAll = Notification.Name("markAll")
+    static let clearMarks = Notification.Name("clearMarks")
 }
