@@ -34,6 +34,29 @@ struct Notepad__App: App {
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
             }
+            
+            CommandGroup(after: .textEditing) {
+                Divider()
+                Button("Find...") {
+                    NotificationCenter.default.post(name: .showFind, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
+                
+                Button("Find and Replace...") {
+                    NotificationCenter.default.post(name: .showReplace, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: [.command, .option])
+                
+                Button("Find Next") {
+                    NotificationCenter.default.post(name: .findNext, object: nil)
+                }
+                .keyboardShortcut("g", modifiers: .command)
+                
+                Button("Find Previous") {
+                    NotificationCenter.default.post(name: .findPrevious, object: nil)
+                }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+            }
         }
     }
 }
@@ -42,4 +65,8 @@ extension Notification.Name {
     static let newDocument = Notification.Name("newDocument")
     static let saveDocument = Notification.Name("saveDocument")
     static let saveDocumentAs = Notification.Name("saveDocumentAs")
+    static let showFind = Notification.Name("showFind")
+    static let showReplace = Notification.Name("showReplace")
+    static let findNext = Notification.Name("findNext")
+    static let findPrevious = Notification.Name("findPrevious")
 }
