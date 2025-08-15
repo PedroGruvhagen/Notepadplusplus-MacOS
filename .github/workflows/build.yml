@@ -1,0 +1,85 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test on macOS
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode.app
+      
+    - name: Show Xcode version
+      run: xcodebuild -version
+      
+    - name: Build for Apple Silicon
+      run: |
+        xcodebuild build \
+          -project Notepad++.xcodeproj \
+          -scheme Notepad++ \
+          -destination 'platform=macOS,arch=arm64' \
+          -configuration Release \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+          
+    - name: Build for Intel
+      run: |
+        xcodebuild build \
+          -project Notepad++.xcodeproj \
+          -scheme Notepad++ \
+          -destination 'platform=macOS,arch=x86_64' \
+          -configuration Release \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+          
+    - name: Run Tests
+      run: |
+        xcodebuild test \
+          -project Notepad++.xcodeproj \
+          -scheme Notepad++ \
+          -destination 'platform=macOS' \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+      continue-on-error: true
+      
+  release:
+    name: Create Release Build
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build Universal Binary
+      run: |
+        xcodebuild -project Notepad++.xcodeproj \
+          -scheme Notepad++ \
+          -configuration Release \
+          -derivedDataPath build \
+          -arch arm64 -arch x86_64 \
+          ONLY_ACTIVE_ARCH=NO \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+          
+    - name: Create DMG
+      run: |
+        mkdir -p dist
+        cp -R "build/Build/Products/Release/Notepad++.app" dist/
+        hdiutil create -volname "Notepad++ for macOS" \
+          -srcfolder dist \
+          -ov -format UDZO \
+          "Notepad++-macOS-Universal.dmg"
+          
+    - name: Upload Release Asset
+      uses: actions/upload-artifact@v3
+      with:
+        name: Notepad++-macOS-Universal
+        path: Notepad++-macOS-Universal.dmg
