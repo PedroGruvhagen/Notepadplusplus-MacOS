@@ -23,14 +23,29 @@ struct Notepad__App: App {
                 .keyboardShortcut(",", modifiers: .command)
             }
             
+            // File Menu - matching Notepad++ structure
             CommandGroup(replacing: .newItem) {
-                Button("New Tab") {
+                Button("New") {
                     NotificationCenter.default.post(name: .newDocument, object: nil)
                 }
-                .keyboardShortcut("t", modifiers: .command)
-            }
-            
-            CommandGroup(replacing: .saveItem) {
+                .keyboardShortcut("n", modifiers: .command)
+                
+                Button("Open...") {
+                    NotificationCenter.default.post(name: .openDocument, object: nil)
+                }
+                .keyboardShortcut("o", modifiers: .command)
+                
+                // TODO: Open Containing Folder submenu
+                // TODO: Open in Default Viewer
+                // TODO: Open Folder as Workspace
+                
+                Button("Reload from Disk") {
+                    NotificationCenter.default.post(name: .reloadDocument, object: nil)
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                
+                Divider()
+                
                 Button("Save") {
                     NotificationCenter.default.post(name: .saveDocument, object: nil)
                 }
@@ -41,27 +56,69 @@ struct Notepad__App: App {
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
                 
+                Button("Save a Copy As...") {
+                    NotificationCenter.default.post(name: .saveCopyAs, object: nil)
+                }
+                .keyboardShortcut("s", modifiers: [.command, .option, .shift])
+                
                 Button("Save All") {
                     NotificationCenter.default.post(name: .saveAllDocuments, object: nil)
                 }
                 .keyboardShortcut("s", modifiers: [.command, .option])
                 
+                Button("Rename...") {
+                    NotificationCenter.default.post(name: .renameDocument, object: nil)
+                }
+                
                 Divider()
                 
-                Button("Close Tab") {
+                Button("Close") {
                     NotificationCenter.default.post(name: .closeTab, object: nil)
                 }
                 .keyboardShortcut("w", modifiers: .command)
                 
-                Button("Close All Tabs") {
+                Button("Close All") {
                     NotificationCenter.default.post(name: .closeAllTabs, object: nil)
                 }
                 .keyboardShortcut("w", modifiers: [.command, .shift])
                 
-                Button("Close Other Tabs") {
-                    NotificationCenter.default.post(name: .closeOtherTabs, object: nil)
+                // Close Multiple Documents submenu
+                Menu("Close Multiple Documents") {
+                    Button("Close All but Active Document") {
+                        NotificationCenter.default.post(name: .closeOtherTabs, object: nil)
+                    }
+                    
+                    Button("Close All to the Left") {
+                        NotificationCenter.default.post(name: .closeAllToLeft, object: nil)
+                    }
+                    
+                    Button("Close All to the Right") {
+                        NotificationCenter.default.post(name: .closeAllToRight, object: nil)
+                    }
+                    
+                    Button("Close All Unchanged") {
+                        NotificationCenter.default.post(name: .closeAllUnchanged, object: nil)
+                    }
                 }
-                .keyboardShortcut("w", modifiers: [.command, .option])
+                
+                Button("Move to Recycle Bin") {
+                    NotificationCenter.default.post(name: .moveToTrash, object: nil)
+                }
+                .keyboardShortcut(.delete, modifiers: .command)
+                
+                Divider()
+                
+                // TODO: Load Session...
+                // TODO: Save Session...
+                
+                Divider()
+                
+                Button("Print...") {
+                    NotificationCenter.default.post(name: .printDocument, object: nil)
+                }
+                .keyboardShortcut("p", modifiers: .command)
+                
+                // TODO: Print Now
             }
             
             // Edit menu - replacing standard text editing commands
@@ -272,12 +329,21 @@ struct Notepad__App: App {
 extension Notification.Name {
     static let showPreferences = Notification.Name("showPreferences")
     static let newDocument = Notification.Name("newDocument")
+    static let openDocument = Notification.Name("openDocument")
+    static let reloadDocument = Notification.Name("reloadDocument")
     static let saveDocument = Notification.Name("saveDocument")
     static let saveDocumentAs = Notification.Name("saveDocumentAs")
+    static let saveCopyAs = Notification.Name("saveCopyAs")
     static let saveAllDocuments = Notification.Name("saveAllDocuments")
+    static let renameDocument = Notification.Name("renameDocument")
     static let closeTab = Notification.Name("closeTab")
     static let closeAllTabs = Notification.Name("closeAllTabs")
     static let closeOtherTabs = Notification.Name("closeOtherTabs")
+    static let closeAllToLeft = Notification.Name("closeAllToLeft")
+    static let closeAllToRight = Notification.Name("closeAllToRight")
+    static let closeAllUnchanged = Notification.Name("closeAllUnchanged")
+    static let moveToTrash = Notification.Name("moveToTrash")
+    static let printDocument = Notification.Name("printDocument")
     static let findNext = Notification.Name("findNext")
     static let findPrevious = Notification.Name("findPrevious")
     static let undo = Notification.Name("undo")

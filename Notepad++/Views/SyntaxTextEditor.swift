@@ -108,12 +108,15 @@ struct SyntaxTextEditor: NSViewRepresentable {
             textView.textContainer?.containerSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         }
         
-        // Update text if it's different from what's displayed
-        if textView.string != text {
+        // Only update text if it's different AND we're not currently typing
+        if !context.coordinator.isUserTyping && textView.string != text {
+            context.coordinator.isUpdating = true
             textView.string = text
+            context.coordinator.lastKnownText = text
             if syntaxHighlightingEnabled && settings.syntaxHighlighting {
                 context.coordinator.applySyntaxHighlighting(to: textView)
             }
+            context.coordinator.isUpdating = false
         }
         
         // Update syntax highlighting setting
@@ -130,7 +133,9 @@ struct SyntaxTextEditor: NSViewRepresentable {
         var syntaxHighlightingEnabled: Bool
         var language: LanguageDefinition?
         private let syntaxHighlighter = SyntaxHighlighter()
-        private var isUpdating = false
+        var isUpdating = false
+        var isUserTyping = false
+        var lastKnownText = ""
         private var searchRanges: [NSRange] = []
         private var currentSearchIndex: Int = 0
         private weak var textView: NSTextView?
@@ -294,9 +299,16 @@ struct SyntaxTextEditor: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             
+            // Skip if this change came from updateNSView
+            if isUpdating { return }
+            
+            isUserTyping = true
+            let newText = textView.string
+            lastKnownText = newText
+            
             // Update the binding
-            parent.text = textView.string
-            parent.onTextChange(textView.string)
+            parent.text = newText
+            parent.onTextChange(newText)
             
             // If we have search highlights, update them after content changes
             if !searchRanges.isEmpty {
@@ -307,11 +319,19 @@ struct SyntaxTextEditor: NSViewRepresentable {
                 )
             }
             
-            // Apply syntax highlighting with a small delay to avoid performance issues
-            if syntaxHighlightingEnabled && !isUpdating {
+            // Apply syntax highlighting with a smaller delay for better responsiveness
+            if syntaxHighlightingEnabled {
                 NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(delayedHighlight(_:)), object: textView)
-                perform(#selector(delayedHighlight(_:)), with: textView, afterDelay: 0.3)
+                perform(#selector(delayedHighlight(_:)), with: textView, afterDelay: 0.1)
             }
+            
+            // Reset typing flag after a short delay
+            NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(resetTypingFlag), object: nil)
+            perform(#selector(resetTypingFlag), with: nil, afterDelay: 0.5)
+        }
+        
+        @objc private func resetTypingFlag() {
+            isUserTyping = false
         }
         
         @objc private func delayedHighlight(_ textView: NSTextView) {
@@ -323,28 +343,33 @@ struct SyntaxTextEditor: NSViewRepresentable {
                 // Reset to default formatting if highlighting is disabled
                 let range = NSRange(location: 0, length: textView.string.count)
                 textView.textStorage?.removeAttribute(.foregroundColor, range: range)
+                textView.textStorage?.removeAttribute(.backgroundColor, range: range)
                 textView.textStorage?.removeAttribute(.font, range: range)
-                textView.textStorage?.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: parent.fontSize, weight: .regular), range: range)
+                let defaultFont = NSFont.monospacedSystemFont(ofSize: parent.fontSize, weight: .regular)
+                textView.textStorage?.addAttribute(.font, value: defaultFont, range: range)
                 textView.textStorage?.addAttribute(.foregroundColor, value: NSColor.labelColor, range: range)
                 return
             }
             
-            isUpdating = true
-            
             let text = textView.string
             let textStorage = textView.textStorage!
             
-            // Store cursor position
+            // Store cursor position and scroll position
             let selectedRange = textView.selectedRange()
+            let visibleRect = textView.visibleRect
             
             // Begin editing
             textStorage.beginEditing()
             
-            // Reset all attributes first
+            // Reset attributes more carefully to preserve text
             let fullRange = NSRange(location: 0, length: text.count)
+            let defaultFont = NSFont.monospacedSystemFont(ofSize: parent.fontSize, weight: .regular)
+            
+            // Remove only color attributes, preserve the text
             textStorage.removeAttribute(.foregroundColor, range: fullRange)
+            textStorage.removeAttribute(.backgroundColor, range: fullRange)
             textStorage.removeAttribute(.font, range: fullRange)
-            textStorage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: parent.fontSize, weight: .regular), range: fullRange)
+            textStorage.addAttribute(.font, value: defaultFont, range: fullRange)
             textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
             
             // Apply syntax highlighting
@@ -389,13 +414,12 @@ struct SyntaxTextEditor: NSViewRepresentable {
             // End editing
             textStorage.endEditing()
             
-            // Restore cursor position
+            // Restore cursor position and scroll position
             textView.setSelectedRange(selectedRange)
+            textView.scrollToVisible(visibleRect)
             
             // Highlight search results if any
             highlightSearchResults(in: textStorage)
-            
-            isUpdating = false
         }
         
         func highlightSearchResults(in textStorage: NSTextStorage) {
