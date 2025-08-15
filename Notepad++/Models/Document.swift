@@ -17,6 +17,7 @@ class Document: ObservableObject, Identifiable {
     @Published var fileName: String
     @Published var fileExtension: String?
     @Published var language: LanguageDefinition?
+    @Published var foldingState = FoldingState()
     
     private var lastSavedContent: String
     
