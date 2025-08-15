@@ -10,12 +10,8 @@ import AppKit
 extension NSTextView {
     
     func configureIndentationSettings(tabSize: Int, replaceTabsBySpaces: Bool, maintainIndent: Bool, autoIndent: Bool, smartIndent: Bool) {
-        // Store settings in the text view
-        self.setValue(tabSize, forKey: "tabSize")
-        self.setValue(replaceTabsBySpaces, forKey: "replaceTabsBySpaces")
-        self.setValue(maintainIndent, forKey: "maintainIndent")
-        self.setValue(autoIndent, forKey: "autoIndent")
-        self.setValue(smartIndent, forKey: "smartIndent")
+        // NSTextView doesn't support setValue:forKey: for custom properties
+        // These settings are handled directly by AppSettings.shared when needed
     }
     
     override open func insertTab(_ sender: Any?) {
