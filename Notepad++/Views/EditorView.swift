@@ -73,7 +73,7 @@ struct EditorView: View {
                 .help("Toggle Line Numbers")
                 
                 Button(action: { wordWrap.toggle() }) {
-                    Image(systemName: "text.wrap")
+                    Image(systemName: wordWrap ? "text.alignleft" : "arrow.left.and.right")
                 }
                 .help("Toggle Word Wrap")
                 
