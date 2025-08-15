@@ -111,7 +111,7 @@ class SyntaxHighlighter: ObservableObject {
             let matches = regex.matches(in: content, options: [], range: NSRange(location: 0, length: nsString.length))
             
             for match in matches {
-                if let range = Range(match.range, in: content) {
+                if Range(match.range, in: content) != nil {
                     let startIndex = attributedString.index(attributedString.startIndex, offsetByCharacters: match.range.location)
                     let endIndex = attributedString.index(startIndex, offsetByCharacters: match.range.length)
                     let attributeRange = startIndex..<endIndex
