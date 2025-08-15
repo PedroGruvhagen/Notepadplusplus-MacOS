@@ -168,7 +168,7 @@ class AutoCompletionEngine: NSObject {
         // Create window for completion list
         let panel = NSPanel(
             contentRect: NSRect(x: windowRect.origin.x, y: windowRect.origin.y - 150, width: 200, height: 150),
-            styleMask: [.borderless],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -178,9 +178,11 @@ class AutoCompletionEngine: NSObject {
         panel.isOpaque = false
         panel.hasShadow = true
         panel.level = .floating
+        panel.isFloatingPanel = true
+        panel.becomesKeyOnlyIfNeeded = true
         
         window.addChildWindow(panel, ordered: .above)
-        panel.makeKeyAndOrderFront(nil)
+        panel.orderFront(nil)  // Use orderFront instead of makeKeyAndOrderFront
         
         completionWindow = panel
     }

@@ -38,11 +38,17 @@ extension NSTextView {
         let text = self.string as NSString
         let selectedRange = self.selectedRange()
         
+        // Guard against invalid range
+        guard selectedRange.location <= text.length else {
+            super.insertNewline(sender)
+            return
+        }
+        
         // Find the start of the current line
         var lineStart = 0
         var lineEnd = 0
-        text.getLineStart(&lineStart, end: &lineEnd, contentsEnd: nil,
-                         for: NSRange(location: selectedRange.location, length: 0))
+        let safeRange = NSRange(location: min(selectedRange.location, text.length), length: 0)
+        text.getLineStart(&lineStart, end: &lineEnd, contentsEnd: nil, for: safeRange)
         
         // Extract current line
         let currentLine = text.substring(with: NSRange(location: lineStart, length: selectedRange.location - lineStart))
