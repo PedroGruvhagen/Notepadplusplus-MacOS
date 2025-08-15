@@ -12,7 +12,6 @@ struct EditorView: View {
     @FocusState private var isEditorFocused: Bool
     @ObservedObject private var settings = AppSettings.shared
     @StateObject private var searchManager = AdvancedSearchManager.shared
-    @State private var fontSize: CGFloat = 13
     @State private var enableSyntaxHighlighting = true
     @State private var showFindReplace = false
     @State private var showReplaceBar = false
@@ -35,7 +34,7 @@ struct EditorView: View {
             
             if settings.showLineNumbers {
                 HStack(alignment: .top, spacing: 0) {
-                    EnhancedLineNumberView(document: document, fontSize: fontSize)
+                    EnhancedLineNumberView(document: document, fontSize: CGFloat(settings.fontSize))
                         .background(Color(NSColor.controlBackgroundColor))
                     
                     Divider()
@@ -47,7 +46,16 @@ struct EditorView: View {
                                 document.updateContent(newText)
                             }
                         ),
-                        fontSize: fontSize,
+                        fontSize: CGFloat(settings.fontSize),
+                        fontName: settings.fontName,
+                        wordWrap: settings.wordWrap,
+                        showWhitespace: settings.showWhitespace,
+                        showEndOfLine: settings.showEndOfLine,
+                        highlightCurrentLine: settings.highlightCurrentLine,
+                        currentLineColor: settings.currentLineColor,
+                        showIndentGuides: settings.showIndentGuides,
+                        caretWidth: CGFloat(settings.caretWidth),
+                        scrollBeyondLastLine: settings.scrollBeyondLastLine,
                         language: document.language,
                         syntaxHighlightingEnabled: enableSyntaxHighlighting && settings.syntaxHighlighting,
                         onTextChange: nil
@@ -65,7 +73,16 @@ struct EditorView: View {
                             document.updateContent(newText)
                         }
                     ),
-                    fontSize: fontSize,
+                    fontSize: CGFloat(settings.fontSize),
+                    fontName: settings.fontName,
+                    wordWrap: settings.wordWrap,
+                    showWhitespace: settings.showWhitespace,
+                    showEndOfLine: settings.showEndOfLine,
+                    highlightCurrentLine: settings.highlightCurrentLine,
+                    currentLineColor: settings.currentLineColor,
+                    showIndentGuides: settings.showIndentGuides,
+                    caretWidth: CGFloat(settings.caretWidth),
+                    scrollBeyondLastLine: settings.scrollBeyondLastLine,
                     language: document.language,
                     syntaxHighlightingEnabled: settings.syntaxHighlighting,
                     onTextChange: nil
@@ -76,7 +93,9 @@ struct EditorView: View {
                 }
             }
             
-            StatusBarView(document: document)
+            if settings.showStatusBar {
+                StatusBarView(document: document)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showFind)) { _ in
             showFindReplace = true
@@ -123,12 +142,12 @@ struct EditorView: View {
                 
                 Divider()
                 
-                Button(action: { if fontSize > 8 { fontSize -= 1 } }) {
+                Button(action: { if settings.fontSize > 8 { settings.fontSize -= 1 } }) {
                     Image(systemName: "textformat.size.smaller")
                 }
                 .help("Decrease Font Size")
                 
-                Button(action: { if fontSize < 24 { fontSize += 1 } }) {
+                Button(action: { if settings.fontSize < 24 { settings.fontSize += 1 } }) {
                     Image(systemName: "textformat.size.larger")
                 }
                 .help("Increase Font Size")
