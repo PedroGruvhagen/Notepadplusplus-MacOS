@@ -41,11 +41,11 @@ struct EditorTab: Identifiable, Hashable {
         }
     }
     
-    static func == (lhs: EditorTab, rhs: EditorTab) -> Bool {
+    nonisolated static func == (lhs: EditorTab, rhs: EditorTab) -> Bool {
         lhs.id == rhs.id
     }
     
-    func hash(into hasher: inout Hasher) {
+    nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 }
