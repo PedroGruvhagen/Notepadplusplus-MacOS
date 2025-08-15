@@ -40,6 +40,28 @@ struct Notepad__App: App {
                     NotificationCenter.default.post(name: .saveDocumentAs, object: nil)
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
+                
+                Button("Save All") {
+                    NotificationCenter.default.post(name: .saveAllDocuments, object: nil)
+                }
+                .keyboardShortcut("s", modifiers: [.command, .option])
+                
+                Divider()
+                
+                Button("Close Tab") {
+                    NotificationCenter.default.post(name: .closeTab, object: nil)
+                }
+                .keyboardShortcut("w", modifiers: .command)
+                
+                Button("Close All Tabs") {
+                    NotificationCenter.default.post(name: .closeAllTabs, object: nil)
+                }
+                .keyboardShortcut("w", modifiers: [.command, .shift])
+                
+                Button("Close Other Tabs") {
+                    NotificationCenter.default.post(name: .closeOtherTabs, object: nil)
+                }
+                .keyboardShortcut("w", modifiers: [.command, .option])
             }
             
             // Edit menu - replacing standard text editing commands
@@ -252,6 +274,10 @@ extension Notification.Name {
     static let newDocument = Notification.Name("newDocument")
     static let saveDocument = Notification.Name("saveDocument")
     static let saveDocumentAs = Notification.Name("saveDocumentAs")
+    static let saveAllDocuments = Notification.Name("saveAllDocuments")
+    static let closeTab = Notification.Name("closeTab")
+    static let closeAllTabs = Notification.Name("closeAllTabs")
+    static let closeOtherTabs = Notification.Name("closeOtherTabs")
     static let findNext = Notification.Name("findNext")
     static let findPrevious = Notification.Name("findPrevious")
     static let undo = Notification.Name("undo")
