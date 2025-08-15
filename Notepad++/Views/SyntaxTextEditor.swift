@@ -16,6 +16,7 @@ struct SyntaxTextEditor: NSViewRepresentable {
     let onTextChange: (String) -> Void
     @State private var searchRanges: [NSRange] = []
     @State private var currentSearchRange: NSRange?
+    @ObservedObject private var settings = AppSettings.shared
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSTextView.scrollableTextView()
@@ -27,9 +28,38 @@ struct SyntaxTextEditor: NSViewRepresentable {
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.isRichText = true
         textView.allowsUndo = true
-        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        
+        // Apply settings
+        let fontName = settings.fontName.isEmpty ? "SF Mono" : settings.fontName
+        if let customFont = NSFont(name: fontName, size: CGFloat(settings.fontSize)) {
+            textView.font = customFont
+        } else {
+            textView.font = NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
+        }
+        
         textView.textColor = NSColor.labelColor
         textView.backgroundColor = NSColor.textBackgroundColor
+        
+        // Apply tab settings
+        let tabWidth = CGFloat(settings.tabSize) * (textView.font?.maximumAdvancement.width ?? 7.0)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.tabStops = []
+        for i in 1...20 {
+            let tabStop = NSTextTab(textAlignment: .left, location: tabWidth * CGFloat(i))
+            paragraphStyle.tabStops.append(tabStop)
+        }
+        textView.defaultParagraphStyle = paragraphStyle
+        
+        // Word wrap setting
+        if settings.wordWrap {
+            textView.isHorizontallyResizable = false
+            textView.textContainer?.widthTracksTextView = true
+            textView.textContainer?.containerSize = CGSize(width: scrollView.frame.width, height: CGFloat.greatestFiniteMagnitude)
+        } else {
+            textView.isHorizontallyResizable = true
+            textView.textContainer?.widthTracksTextView = false
+            textView.textContainer?.containerSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        }
         
         // Apply initial syntax highlighting
         if syntaxHighlightingEnabled {
@@ -42,19 +72,45 @@ struct SyntaxTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         
-        // Update font size
-        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        // Update font from settings
+        let fontName = settings.fontName.isEmpty ? "SF Mono" : settings.fontName
+        if let customFont = NSFont(name: fontName, size: CGFloat(settings.fontSize)) {
+            textView.font = customFont
+        } else {
+            textView.font = NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
+        }
+        
+        // Update tab settings
+        let tabWidth = CGFloat(settings.tabSize) * (textView.font?.maximumAdvancement.width ?? 7.0)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.tabStops = []
+        for i in 1...20 {
+            let tabStop = NSTextTab(textAlignment: .left, location: tabWidth * CGFloat(i))
+            paragraphStyle.tabStops.append(tabStop)
+        }
+        textView.defaultParagraphStyle = paragraphStyle
+        
+        // Update word wrap
+        if settings.wordWrap {
+            textView.isHorizontallyResizable = false
+            textView.textContainer?.widthTracksTextView = true
+            textView.textContainer?.containerSize = CGSize(width: scrollView.frame.width, height: CGFloat.greatestFiniteMagnitude)
+        } else {
+            textView.isHorizontallyResizable = true
+            textView.textContainer?.widthTracksTextView = false
+            textView.textContainer?.containerSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        }
         
         // Update text if it's different from what's displayed
         if textView.string != text {
             textView.string = text
-            if syntaxHighlightingEnabled {
+            if syntaxHighlightingEnabled && settings.syntaxHighlighting {
                 context.coordinator.applySyntaxHighlighting(to: textView)
             }
         }
         
         // Update syntax highlighting setting
-        context.coordinator.syntaxHighlightingEnabled = syntaxHighlightingEnabled
+        context.coordinator.syntaxHighlightingEnabled = syntaxHighlightingEnabled && settings.syntaxHighlighting
         context.coordinator.language = language
     }
     

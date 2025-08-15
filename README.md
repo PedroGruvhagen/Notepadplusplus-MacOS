@@ -1,20 +1,22 @@
-# Notepad++ for macOS (Unofficial)
+# Notepad++ for macOS (Unofficial PORT)
 
-A native macOS implementation of the beloved Notepad++ text editor, built with Swift and SwiftUI, optimized for Apple Silicon.
+A DIRECT PORT of Notepad++ ARM version to macOS, built with Swift and SwiftUI, optimized for Apple Silicon.
 
 ## 🎯 Project Goal
 
-Bring the power and simplicity of Notepad++ to macOS users with a fully native experience that runs seamlessly on Apple Silicon (M1/M2/M3) Macs.
+PORT the exact functionality of Notepad++ Windows ARM version to macOS with a fully native experience that runs seamlessly on Apple Silicon (M1/M2/M3) Macs.
+
+**THIS IS A PORT**: We are directly porting features, settings, and behaviors from the original Notepad++ source code, not creating a "similar" or "inspired by" application.
 
 ## 🙏 Attribution
 
-This project is **inspired by [Notepad++](https://notepad-plus-plus.org/)**, the fantastic open-source text editor created by Don Ho. We have tremendous respect for the original project and its community.
+This project is a **DIRECT PORT of [Notepad++](https://notepad-plus-plus.org/)** to macOS, the fantastic open-source text editor created by Don Ho. We have tremendous respect for the original project and its community.
 
 - **Original Notepad++**: [GitHub](https://github.com/notepad-plus-plus/notepad-plus-plus) | [Website](https://notepad-plus-plus.org/)
 - **Original License**: GPL v3
 - **Original Author**: Don Ho and contributors
 
-**Important**: This is an independent implementation and is NOT officially affiliated with or endorsed by Notepad++ unless explicitly stated.
+**Important**: This is an independent PORT of Notepad++ to macOS and is NOT officially affiliated with or endorsed by Notepad++ unless explicitly stated. We are porting the exact features and functionality from the original source code.
 
 ## 📝 Letter to Notepad++ Team
 
@@ -94,9 +96,10 @@ The original Notepad++ is licensed under GPL v3.
 
 ## 🌟 Why This Project?
 
+- **Direct Port**: Exact feature-for-feature port of Notepad++ Windows ARM version
 - **Native Performance**: Built specifically for macOS and Apple Silicon
-- **macOS Integration**: Uses native macOS APIs and follows Apple's Human Interface Guidelines
-- **Feature Parity**: Aims to match Notepad++ Windows ARM version features
+- **macOS Integration**: Uses native macOS APIs while maintaining Notepad++ functionality
+- **Feature Parity**: Direct port of all Notepad++ Windows ARM version features
 - **Open Source**: Free and open for the community
 
 ## 📊 Comparison with Original
