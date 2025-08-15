@@ -35,7 +35,9 @@ struct ContentView: View {
                 }
                 
                 Button(action: {
-                    documentManager.openDocument()
+                    Task {
+                        await documentManager.openDocument()
+                    }
                 }) {
                     Label("Open", systemImage: "folder")
                 }

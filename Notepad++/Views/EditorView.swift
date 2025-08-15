@@ -39,14 +39,14 @@ struct EditorView: View {
                     
                     Divider()
                     
-                    SyntaxTextEditor(
+                    BracketHighlightTextEditor(
                         text: Binding(
                             get: { document.content },
                             set: { _ in } // Handled by onTextChange
                         ),
-                        language: document.language,
                         fontSize: fontSize,
-                        syntaxHighlightingEnabled: enableSyntaxHighlighting,
+                        language: document.language,
+                        syntaxHighlightingEnabled: enableSyntaxHighlighting && settings.syntaxHighlighting,
                         onTextChange: { newText in
                             document.updateContent(newText)
                         }
@@ -57,13 +57,13 @@ struct EditorView: View {
                     }
                 }
             } else {
-                SyntaxTextEditor(
+                BracketHighlightTextEditor(
                     text: Binding(
                         get: { document.content },
                         set: { _ in } // Handled by onTextChange
                     ),
-                    language: document.language,
                     fontSize: fontSize,
+                    language: document.language,
                     syntaxHighlightingEnabled: settings.syntaxHighlighting,
                     onTextChange: { newText in
                         document.updateContent(newText)
