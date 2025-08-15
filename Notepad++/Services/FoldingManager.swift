@@ -78,7 +78,7 @@ class FoldingManager {
     }
     
     private static func detectSwiftFoldingRegions(lines: [String]) -> [FoldingRegion] {
-        var regions = detectCStyleFoldingRegions(lines: lines)
+        let regions = detectCStyleFoldingRegions(lines: lines)
         
         // Add Swift-specific patterns (closures, guard statements, etc.)
         var closureStack: [(line: Int, level: Int)] = []
@@ -102,7 +102,7 @@ class FoldingManager {
     
     private static func detectPythonFoldingRegions(lines: [String]) -> [FoldingRegion] {
         var regions: [FoldingRegion] = []
-        var indentStack: [(line: Int, indent: Int, type: FoldingRegion.FoldingType)] = []
+        _ = [(line: Int, indent: Int, type: FoldingRegion.FoldingType)]() // Variable type for reference
         
         for (index, line) in lines.enumerated() {
             let leadingSpaces = line.prefix(while: { $0 == " " || $0 == "\t" }).count
@@ -177,31 +177,38 @@ class FoldingManager {
         var regions: [FoldingRegion] = []
         var tagStack: [(tag: String, line: Int)] = []
         
+        let openingTagRegex = try! NSRegularExpression(pattern: "<([a-zA-Z0-9\\-_]+)[^>]*>", options: [])
+        let closingTagRegex = try! NSRegularExpression(pattern: "</([a-zA-Z0-9\\-_]+)>", options: [])
+        
         for (index, line) in lines.enumerated() {
             // Find opening tags
-            let openingTags = line.matches(of: /<([a-zA-Z0-9\-_]+)[^>]*>/)
-            for match in openingTags {
-                let tag = String(match.output.1)
-                if !line.contains("</\(tag)>") { // Not self-closing on same line
-                    tagStack.append((tag: tag, line: index))
+            let openingMatches = openingTagRegex.matches(in: line, options: [], range: NSRange(location: 0, length: line.count))
+            for match in openingMatches {
+                if let tagRange = Range(match.range(at: 1), in: line) {
+                    let tag = String(line[tagRange])
+                    if !line.contains("</\(tag)>") { // Not self-closing on same line
+                        tagStack.append((tag: tag, line: index))
+                    }
                 }
             }
             
             // Find closing tags
-            let closingTags = line.matches(of: /<\/([a-zA-Z0-9\-_]+)>/)
-            for match in closingTags {
-                let tag = String(match.output.1)
-                if let lastIndex = tagStack.lastIndex(where: { $0.tag == tag }) {
-                    let start = tagStack[lastIndex]
-                    if index > start.line {
-                        regions.append(FoldingRegion(
-                            startLine: start.line,
-                            endLine: index,
-                            level: lastIndex,
-                            type: .block
-                        ))
+            let closingMatches = closingTagRegex.matches(in: line, options: [], range: NSRange(location: 0, length: line.count))
+            for match in closingMatches {
+                if let tagRange = Range(match.range(at: 1), in: line) {
+                    let tag = String(line[tagRange])
+                    if let lastIndex = tagStack.lastIndex(where: { $0.tag == tag }) {
+                        let start = tagStack[lastIndex]
+                        if index > start.line {
+                            regions.append(FoldingRegion(
+                                startLine: start.line,
+                                endLine: index,
+                                level: lastIndex,
+                                type: .block
+                            ))
+                        }
+                        tagStack.remove(at: lastIndex)
                     }
-                    tagStack.remove(at: lastIndex)
                 }
             }
         }
@@ -258,7 +265,7 @@ class FoldingManager {
     
     private static func detectIndentationBasedFolding(lines: [String], indentSize: Int) -> [FoldingRegion] {
         var regions: [FoldingRegion] = []
-        var indentStack: [(line: Int, level: Int)] = []
+        _ = [(line: Int, level: Int)]() // Variable type for reference
         
         for (index, line) in lines.enumerated() {
             let spaces = line.prefix(while: { $0 == " " || $0 == "\t" }).count
@@ -305,7 +312,7 @@ class FoldingManager {
     
     private static func detectMultilineComments(lines: [String], language: LanguageDefinition?) -> [FoldingRegion] {
         var regions: [FoldingRegion] = []
-        let text = lines.joined(separator: "\n")
+        _ = lines.joined(separator: "\n") // Variable type for reference
         
         // C-style comments /* */
         if let _ = language?.name.lowercased(),
@@ -380,7 +387,7 @@ class FoldingManager {
             return .classType
         } else if trimmed.contains("func ") || trimmed.contains("function ") || 
                   trimmed.contains("def ") || trimmed.contains("void ") ||
-                  trimmed.matches(of: /\w+\s*\(/).count > 0 {
+                  trimmed.range(of: "\\w+\\s*\\(", options: .regularExpression) != nil {
             return .function
         } else if trimmed.hasPrefix("//") || trimmed.hasPrefix("/*") || trimmed.hasPrefix("#") {
             return .comment

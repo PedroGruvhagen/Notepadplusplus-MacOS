@@ -71,7 +71,9 @@ struct ContentView: View {
             object: nil,
             queue: .main
         ) { _ in
-            documentManager.createNewDocument()
+            Task { @MainActor in
+                documentManager.createNewDocument()
+            }
         }
         
         NotificationCenter.default.addObserver(
@@ -79,8 +81,8 @@ struct ContentView: View {
             object: nil,
             queue: .main
         ) { _ in
-            if let activeTab = documentManager.activeTab {
-                Task {
+            Task { @MainActor in
+                if let activeTab = documentManager.activeTab {
                     await documentManager.saveDocument(activeTab)
                 }
             }
@@ -91,8 +93,8 @@ struct ContentView: View {
             object: nil,
             queue: .main
         ) { _ in
-            if let activeTab = documentManager.activeTab {
-                Task {
+            Task { @MainActor in
+                if let activeTab = documentManager.activeTab {
                     await documentManager.saveDocumentAs(activeTab)
                 }
             }

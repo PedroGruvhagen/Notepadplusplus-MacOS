@@ -97,8 +97,8 @@ struct SearchSettingsView: View {
                         TextField("", value: $searchHistoryLimit, format: .number)
                             .frame(width: 60)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .onChange(of: searchHistoryLimit) { newValue in
-                                UserDefaults.standard.set(newValue, forKey: "searchHistoryLimit")
+                            .onChange(of: searchHistoryLimit) {
+                                UserDefaults.standard.set(searchHistoryLimit, forKey: "searchHistoryLimit")
                             }
                         Text("entries")
                     }
@@ -108,8 +108,8 @@ struct SearchSettingsView: View {
                         TextField("", value: $replaceHistoryLimit, format: .number)
                             .frame(width: 60)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .onChange(of: replaceHistoryLimit) { newValue in
-                                UserDefaults.standard.set(newValue, forKey: "replaceHistoryLimit")
+                            .onChange(of: replaceHistoryLimit) {
+                                UserDefaults.standard.set(replaceHistoryLimit, forKey: "replaceHistoryLimit")
                             }
                         Text("entries")
                     }
