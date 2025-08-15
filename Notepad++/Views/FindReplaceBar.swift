@@ -9,14 +9,12 @@ import SwiftUI
 
 struct FindReplaceBar: View {
     @ObservedObject var document: Document
+    @ObservedObject private var settings = AppSettings.shared
     @Binding var showReplace: Bool
     @Binding var isVisible: Bool
     
     @State private var searchText = ""
     @State private var replaceText = ""
-    @State private var caseSensitive = false
-    @State private var wholeWord = false
-    @State private var useRegex = false
     @State private var currentMatch = 0
     @State private var totalMatches = 0
     @FocusState private var isFindFocused: Bool
@@ -58,24 +56,24 @@ struct FindReplaceBar: View {
                 Divider()
                     .frame(height: 20)
                 
-                Toggle("Aa", isOn: $caseSensitive)
+                Toggle("Aa", isOn: $settings.searchMatchCase)
                     .toggleStyle(.button)
                     .help("Case Sensitive")
-                    .onChange(of: caseSensitive) {
+                    .onChange(of: settings.searchMatchCase) {
                         updateSearchResults()
                     }
                 
-                Toggle("W", isOn: $wholeWord)
+                Toggle("W", isOn: $settings.searchWholeWord)
                     .toggleStyle(.button)
                     .help("Whole Word")
-                    .onChange(of: wholeWord) {
+                    .onChange(of: settings.searchWholeWord) {
                         updateSearchResults()
                     }
                 
-                Toggle(".*", isOn: $useRegex)
+                Toggle(".*", isOn: $settings.searchUseRegex)
                     .toggleStyle(.button)
                     .help("Regex")
-                    .onChange(of: useRegex) {
+                    .onChange(of: settings.searchUseRegex) {
                         updateSearchResults()
                     }
                 
@@ -154,15 +152,15 @@ struct FindReplaceBar: View {
         var pattern = searchText
         var options: NSRegularExpression.Options = []
         
-        if !useRegex {
+        if !settings.searchUseRegex {
             pattern = NSRegularExpression.escapedPattern(for: searchText)
         }
         
-        if wholeWord {
+        if settings.searchWholeWord {
             pattern = "\\b\(pattern)\\b"
         }
         
-        if !caseSensitive {
+        if !settings.searchMatchCase {
             options.insert(.caseInsensitive)
         }
         
@@ -182,8 +180,10 @@ struct FindReplaceBar: View {
         
         if currentMatch < matches.count {
             currentMatch += 1
-        } else {
+        } else if settings.searchWrapAround {
             currentMatch = 1
+        } else {
+            return // Don't wrap if wrap around is disabled
         }
         
         // Send notification to highlight and scroll to match
@@ -206,8 +206,10 @@ struct FindReplaceBar: View {
         
         if currentMatch > 1 {
             currentMatch -= 1
-        } else {
+        } else if settings.searchWrapAround {
             currentMatch = matches.count
+        } else {
+            return // Don't wrap if wrap around is disabled
         }
         
         // Send notification to highlight and scroll to match
