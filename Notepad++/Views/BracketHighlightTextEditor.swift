@@ -283,6 +283,11 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             updateBracketHighlighting()
             updateCurrentLineHighlight()
+            
+            // Update smart highlighting
+            if let textView = textView {
+                textView.updateSmartHighlight()
+            }
         }
         
         func updateBracketHighlighting() {
