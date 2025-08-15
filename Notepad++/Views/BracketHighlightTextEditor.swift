@@ -149,8 +149,13 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             if isUpdating { return }
             
             isUserTyping = true
-            parent.text = textView.string  // Update the binding directly
-            parent.onTextChange(textView.string)
+            
+            // Update through the binding (which now properly updates the document)
+            let newText = textView.string
+            if parent.text != newText {
+                parent.text = newText
+            }
+            
             updateBracketHighlighting()
             
             // Reset typing flag after a delay

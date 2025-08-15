@@ -42,13 +42,15 @@ struct EditorView: View {
                     BracketHighlightTextEditor(
                         text: Binding(
                             get: { document.content },
-                            set: { _ in } // Handled by onTextChange
+                            set: { newText in 
+                                document.updateContent(newText)
+                            }
                         ),
                         fontSize: fontSize,
                         language: document.language,
                         syntaxHighlightingEnabled: enableSyntaxHighlighting && settings.syntaxHighlighting,
-                        onTextChange: { newText in
-                            document.updateContent(newText)
+                        onTextChange: { _ in
+                            // Already handled by binding setter
                         }
                     )
                     .focused($isEditorFocused)
@@ -60,13 +62,15 @@ struct EditorView: View {
                 BracketHighlightTextEditor(
                     text: Binding(
                         get: { document.content },
-                        set: { _ in } // Handled by onTextChange
+                        set: { newText in
+                            document.updateContent(newText)
+                        }
                     ),
                     fontSize: fontSize,
                     language: document.language,
                     syntaxHighlightingEnabled: settings.syntaxHighlighting,
-                    onTextChange: { newText in
-                        document.updateContent(newText)
+                    onTextChange: { _ in
+                        // Already handled by binding setter
                     }
                 )
                 .focused($isEditorFocused)
