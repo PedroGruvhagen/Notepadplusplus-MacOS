@@ -298,6 +298,15 @@ struct SyntaxTextEditor: NSViewRepresentable {
             parent.text = textView.string
             parent.onTextChange(textView.string)
             
+            // If we have search highlights, update them after content changes
+            if !searchRanges.isEmpty {
+                // Post notification to recalculate search results
+                NotificationCenter.default.post(
+                    name: .documentContentChanged,
+                    object: nil
+                )
+            }
+            
             // Apply syntax highlighting with a small delay to avoid performance issues
             if syntaxHighlightingEnabled && !isUpdating {
                 NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(delayedHighlight(_:)), object: textView)

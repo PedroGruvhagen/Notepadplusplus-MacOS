@@ -128,11 +128,22 @@ struct FindReplaceBar: View {
         .onAppear {
             isFindFocused = true
         }
+        .onDisappear {
+            // Clear highlights when search bar is closed
+            NotificationCenter.default.post(
+                name: .clearSearchHighlights,
+                object: nil
+            )
+        }
         .onReceive(NotificationCenter.default.publisher(for: .findNext)) { _ in
             findNext()
         }
         .onReceive(NotificationCenter.default.publisher(for: .findPrevious)) { _ in
             findPrevious()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .documentContentChanged)) { _ in
+            // Recalculate search results when document content changes
+            updateSearchResults()
         }
     }
     
@@ -273,4 +284,5 @@ extension Notification.Name {
     static let selectSearchResult = Notification.Name("selectSearchResult")
     static let showFind = Notification.Name("showFind")
     static let showReplace = Notification.Name("showReplace")
+    static let documentContentChanged = Notification.Name("documentContentChanged")
 }
