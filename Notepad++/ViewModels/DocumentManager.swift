@@ -29,24 +29,27 @@ class DocumentManager: ObservableObject {
         activeTab = tab
     }
     
-    func openDocument() {
+    @MainActor
+    func openDocument() async {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.allowedContentTypes = [.text, .sourceCode, .json, .xml, .yaml]
         
-        panel.begin { response in
-            if response == .OK {
-                Task {
-                    for url in panel.urls {
-                        await self.openDocument(from: url)
-                    }
-                }
-            }
+        let response = await panel.beginAsync()
+        
+        guard response == .OK else {
+            // User cancelled
+            return
+        }
+        
+        for url in panel.urls {
+            await openDocument(from: url)
         }
     }
     
+    @MainActor
     func openDocument(from url: URL) async {
         // Check if document is already open
         if let existingTab = tabs.first(where: { $0.document.filePath == url }) {
@@ -61,7 +64,13 @@ class DocumentManager: ObservableObject {
             activeTab = tab
             addToRecentFiles(url)
         } catch {
-            print("Error opening document: \(error)")
+            // Show error alert
+            let alert = NSAlert()
+            alert.messageText = "Open Failed"
+            alert.informativeText = "Could not open the document: \(error.localizedDescription)"
+            alert.alertStyle = .critical
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
     }
     
@@ -79,24 +88,30 @@ class DocumentManager: ObservableObject {
         }
     }
     
+    @MainActor
     func saveDocumentAs(_ tab: EditorTab) async {
-        await MainActor.run {
-            let panel = NSSavePanel()
-            panel.allowedContentTypes = [.text]
-            panel.nameFieldStringValue = tab.document.fileName
-            
-            panel.begin { response in
-                if response == .OK, let url = panel.url {
-                    Task {
-                        do {
-                            try await tab.document.saveAs(to: url)
-                            self.addToRecentFiles(url)
-                        } catch {
-                            print("Error saving document: \(error)")
-                        }
-                    }
-                }
-            }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.text]
+        panel.nameFieldStringValue = tab.document.fileName
+        
+        let response = await panel.beginAsync()
+        
+        guard response == .OK, let url = panel.url else {
+            // User cancelled or panel error
+            return
+        }
+        
+        do {
+            try await tab.document.saveAs(to: url)
+            addToRecentFiles(url)
+        } catch {
+            // Show error alert
+            let alert = NSAlert()
+            alert.messageText = "Save Failed"
+            alert.informativeText = "Could not save the document: \(error.localizedDescription)"
+            alert.alertStyle = .critical
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
     }
     

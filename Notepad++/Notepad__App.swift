@@ -81,6 +81,14 @@ struct Notepad__App: App {
             
             CommandGroup(after: .textEditing) {
                 Divider()
+                
+                Button("Go to Matching Bracket") {
+                    NotificationCenter.default.post(name: .jumpToMatchingBracket, object: nil)
+                }
+                .keyboardShortcut("m", modifiers: .command)
+                
+                Divider()
+                
                 Button("Find...") {
                     NotificationCenter.default.post(name: .showFind, object: nil)
                 }
@@ -261,4 +269,5 @@ extension Notification.Name {
     static let previousBookmark = Notification.Name("previousBookmark")
     static let markAll = Notification.Name("markAll")
     static let clearMarks = Notification.Name("clearMarks")
+    static let jumpToMatchingBracket = Notification.Name("jumpToMatchingBracket")
 }
