@@ -42,6 +42,43 @@ struct Notepad__App: App {
                 .keyboardShortcut("s", modifiers: [.command, .shift])
             }
             
+            // Edit menu - replacing standard text editing commands
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo") {
+                    NotificationCenter.default.post(name: .undo, object: nil)
+                }
+                .keyboardShortcut("z", modifiers: .command)
+                
+                Button("Redo") {
+                    NotificationCenter.default.post(name: .redo, object: nil)
+                }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+            }
+            
+            CommandGroup(replacing: .pasteboard) {
+                Button("Cut") {
+                    NotificationCenter.default.post(name: .cut, object: nil)
+                }
+                .keyboardShortcut("x", modifiers: .command)
+                
+                Button("Copy") {
+                    NotificationCenter.default.post(name: .copy, object: nil)
+                }
+                .keyboardShortcut("c", modifiers: .command)
+                
+                Button("Paste") {
+                    NotificationCenter.default.post(name: .paste, object: nil)
+                }
+                .keyboardShortcut("v", modifiers: .command)
+                
+                Divider()
+                
+                Button("Select All") {
+                    NotificationCenter.default.post(name: .selectAll, object: nil)
+                }
+                .keyboardShortcut("a", modifiers: .command)
+            }
+            
             CommandGroup(after: .textEditing) {
                 Divider()
                 Button("Find...") {
@@ -65,6 +102,67 @@ struct Notepad__App: App {
                 .keyboardShortcut("g", modifiers: [.command, .shift])
             }
             
+            // View menu - matching Notepad++ structure
+            CommandMenu("View") {
+                Button(action: {
+                    AppSettings.shared.wordWrap.toggle()
+                }) {
+                    HStack {
+                        Text("Word Wrap")
+                        if AppSettings.shared.wordWrap {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                .keyboardShortcut("w", modifiers: [.command, .option])
+                
+                Button(action: {
+                    AppSettings.shared.showLineNumbers.toggle()
+                }) {
+                    HStack {
+                        Text("Show Line Numbers")
+                        if AppSettings.shared.showLineNumbers {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                
+                Button(action: {
+                    AppSettings.shared.syntaxHighlighting.toggle()
+                }) {
+                    HStack {
+                        Text("Syntax Highlighting")
+                        if AppSettings.shared.syntaxHighlighting {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                
+                Divider()
+                
+                Button(action: {
+                    AppSettings.shared.showWhitespace.toggle()
+                }) {
+                    HStack {
+                        Text("Show All Characters")
+                        if AppSettings.shared.showWhitespace {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                
+                Button(action: {
+                    AppSettings.shared.showIndentGuides.toggle()
+                }) {
+                    HStack {
+                        Text("Show Indent Guides")
+                        if AppSettings.shared.showIndentGuides {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+            
             // Language menu - matching Notepad++ structure
             CommandMenu("Language") {
                 LanguageMenuView()
@@ -80,4 +178,10 @@ extension Notification.Name {
     static let saveDocumentAs = Notification.Name("saveDocumentAs")
     static let findNext = Notification.Name("findNext")
     static let findPrevious = Notification.Name("findPrevious")
+    static let undo = Notification.Name("undo")
+    static let redo = Notification.Name("redo")
+    static let cut = Notification.Name("cut")
+    static let copy = Notification.Name("copy")
+    static let paste = Notification.Name("paste")
+    static let selectAll = Notification.Name("selectAll")
 }

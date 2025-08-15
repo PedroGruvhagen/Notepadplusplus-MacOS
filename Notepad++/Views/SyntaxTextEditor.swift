@@ -24,8 +24,14 @@ struct SyntaxTextEditor: NSViewRepresentable {
         textView.string = text
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
-        textView.isRichText = true
+        textView.isRichText = true // Need rich text for syntax highlighting
         textView.allowsUndo = true
+        
+        // Enable drag and drop
+        textView.importsGraphics = false
+        textView.isSelectable = true
+        textView.isEditable = true
+        textView.allowsDocumentBackgroundColorChange = false
         
         // Apply settings
         let fontName = settings.fontName.isEmpty ? "SF Mono" : settings.fontName
@@ -64,7 +70,7 @@ struct SyntaxTextEditor: NSViewRepresentable {
             context.coordinator.applySyntaxHighlighting(to: textView)
         }
         
-        // Register for search notifications
+        // Register for notifications
         context.coordinator.setupNotifications(for: textView)
         
         return scrollView
@@ -143,6 +149,7 @@ struct SyntaxTextEditor: NSViewRepresentable {
         func setupNotifications(for textView: NSTextView) {
             self.textView = textView
             
+            // Search notifications
             NotificationCenter.default.addObserver(
                 self,
                 selector: #selector(handleHighlightSearchResults(_:)),
@@ -161,6 +168,49 @@ struct SyntaxTextEditor: NSViewRepresentable {
                 self,
                 selector: #selector(handleSelectSearchResult(_:)),
                 name: .selectSearchResult,
+                object: nil
+            )
+            
+            // Edit menu notifications
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleUndo(_:)),
+                name: .undo,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleRedo(_:)),
+                name: .redo,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleCut(_:)),
+                name: .cut,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleCopy(_:)),
+                name: .copy,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handlePaste(_:)),
+                name: .paste,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleSelectAll(_:)),
+                name: .selectAll,
                 object: nil
             )
         }
@@ -199,6 +249,46 @@ struct SyntaxTextEditor: NSViewRepresentable {
             textView.setSelectedRange(range)
             textView.scrollRangeToVisible(range)
             textView.showFindIndicator(for: range)
+        }
+        
+        // MARK: - Edit Command Handlers
+        
+        @objc private func handleUndo(_ notification: Notification) {
+            guard let textView = self.textView else { return }
+            if textView.undoManager?.canUndo == true {
+                textView.undoManager?.undo()
+            }
+        }
+        
+        @objc private func handleRedo(_ notification: Notification) {
+            guard let textView = self.textView else { return }
+            if textView.undoManager?.canRedo == true {
+                textView.undoManager?.redo()
+            }
+        }
+        
+        @objc private func handleCut(_ notification: Notification) {
+            guard let textView = self.textView else { return }
+            if textView.selectedRange().length > 0 {
+                textView.cut(nil)
+            }
+        }
+        
+        @objc private func handleCopy(_ notification: Notification) {
+            guard let textView = self.textView else { return }
+            if textView.selectedRange().length > 0 {
+                textView.copy(nil)
+            }
+        }
+        
+        @objc private func handlePaste(_ notification: Notification) {
+            guard let textView = self.textView else { return }
+            textView.paste(nil)
+        }
+        
+        @objc private func handleSelectAll(_ notification: Notification) {
+            guard let textView = self.textView else { return }
+            textView.selectAll(nil)
         }
         
         func textDidChange(_ notification: Notification) {
