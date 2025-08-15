@@ -29,7 +29,7 @@ struct FindReplaceView: View {
                             .onSubmit {
                                 findNext()
                             }
-                            .onChange(of: searchOptions.searchText) { _ in
+                            .onChange(of: searchOptions.searchText) {
                                 performSearch()
                             }
                         
@@ -55,21 +55,21 @@ struct FindReplaceView: View {
                         Toggle("Aa", isOn: $searchOptions.caseSensitive)
                             .toggleStyle(.button)
                             .help("Case Sensitive")
-                            .onChange(of: searchOptions.caseSensitive) { _ in
+                            .onChange(of: searchOptions.caseSensitive) {
                                 performSearch()
                             }
                         
                         Toggle("W", isOn: $searchOptions.wholeWord)
                             .toggleStyle(.button)
                             .help("Whole Word")
-                            .onChange(of: searchOptions.wholeWord) { _ in
+                            .onChange(of: searchOptions.wholeWord) {
                                 performSearch()
                             }
                         
                         Toggle(".*", isOn: $searchOptions.useRegex)
                             .toggleStyle(.button)
                             .help("Regular Expression")
-                            .onChange(of: searchOptions.useRegex) { _ in
+                            .onChange(of: searchOptions.useRegex) {
                                 performSearch()
                             }
                         

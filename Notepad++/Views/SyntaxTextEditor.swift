@@ -34,7 +34,7 @@ struct SyntaxTextEditor: NSViewRepresentable {
         textView.allowsDocumentBackgroundColorChange = false
         
         // Apply settings
-        let fontName = settings.fontName.isEmpty ? "SF Mono" : settings.fontName
+        let fontName = settings.fontName.isEmpty ? "Menlo" : settings.fontName
         if let customFont = NSFont(name: fontName, size: CGFloat(settings.fontSize)) {
             textView.font = customFont
         } else {
@@ -80,7 +80,7 @@ struct SyntaxTextEditor: NSViewRepresentable {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         
         // Update font from settings
-        let fontName = settings.fontName.isEmpty ? "SF Mono" : settings.fontName
+        let fontName = settings.fontName.isEmpty ? "Menlo" : settings.fontName
         if let customFont = NSFont(name: fontName, size: CGFloat(settings.fontSize)) {
             textView.font = customFont
         } else {

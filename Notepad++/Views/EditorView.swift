@@ -11,7 +11,7 @@ struct EditorView: View {
     @ObservedObject var document: Document
     @FocusState private var isEditorFocused: Bool
     @ObservedObject private var settings = AppSettings.shared
-    @StateObject private var searchManager = SearchManager.shared
+    @StateObject private var searchManager = AdvancedSearchManager.shared
     @State private var fontSize: CGFloat = 13
     @State private var enableSyntaxHighlighting = true
     @State private var showFindReplace = false

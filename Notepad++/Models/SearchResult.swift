@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Search Result Models
 
-struct FileSearchResult: Identifiable {
+struct FileSearchResult: Identifiable, Hashable {
     let id = UUID()
     let filePath: URL
     let fileName: String
@@ -20,7 +20,7 @@ struct FileSearchResult: Identifiable {
     }
 }
 
-struct LineMatch: Identifiable {
+struct LineMatch: Identifiable, Hashable {
     let id = UUID()
     let lineNumber: Int
     let lineContent: String
@@ -31,7 +31,7 @@ struct LineMatch: Identifiable {
 
 // MARK: - Bookmark Model
 
-struct Bookmark: Identifiable, Codable {
+struct Bookmark: Identifiable, Codable, Hashable {
     let id = UUID()
     let filePath: URL
     let lineNumber: Int
