@@ -14,10 +14,9 @@ class Document: ObservableObject, Identifiable {
     
     @Published var content: String {
         didSet {
-            print("DEBUG Document.content didSet: old=\(oldValue.count), new=\(content.count)")
             // Detect if content is being reset to original file content
-            if content.count == 29 && oldValue.count > 29 && content == lastSavedContent {
-                print("ERROR: Content being reset to original! Reverting...")
+            if oldValue.count > content.count && content == lastSavedContent {
+                // Prevent the reset
                 content = oldValue
             }
         }
@@ -42,16 +41,13 @@ class Document: ObservableObject, Identifiable {
             // Use the new LanguageManager to detect language
             if let nppLanguage = LanguageManager.shared.detectLanguage(for: path.lastPathComponent) {
                 self.language = nppLanguage.toLanguageDefinition()
-                print("DEBUG: Language detected: \(nppLanguage.name)")
-            } else {
+                } else {
                 // Try the old language manager as fallback
                 if let oldLanguage = OldLanguageManager.shared.detectLanguage(for: path) {
                     self.language = oldLanguage
-                    print("DEBUG: Language detected (fallback): \(oldLanguage.name)")
-                } else {
+                    } else {
                     self.language = nil
-                    print("DEBUG: No language detected for \(path.lastPathComponent)")
-                }
+                    }
             }
         } else {
             self.fileName = "Untitled"
@@ -61,9 +57,43 @@ class Document: ObservableObject, Identifiable {
     }
     
     func updateContent(_ newContent: String) {
-        print("DEBUG Document.updateContent: old=\(content.count), new=\(newContent.count), isModified=\(newContent != lastSavedContent)")
+        // Guard against reverting to old content
+        if isModified && newContent == lastSavedContent && content.count > newContent.count {
+            return
+        }
         content = newContent
         isModified = (newContent != lastSavedContent)
+        
+        // Auto-detect language for new documents based on content
+        if language == nil && filePath == nil {
+            detectLanguageFromContent()
+        }
+    }
+    
+    private func detectLanguageFromContent() {
+        // Simple content-based language detection for common patterns
+        let firstLine = content.split(separator: "\n").first?.trimmingCharacters(in: .whitespaces) ?? ""
+        
+        if firstLine.starts(with: "import ") || firstLine.starts(with: "from ") || 
+           firstLine.starts(with: "def ") || firstLine.starts(with: "class ") ||
+           content.contains("print(") {
+            // Python patterns
+            if let pythonLang = LanguageManager.shared.detectLanguage(for: "temp.py") {
+                self.language = pythonLang.toLanguageDefinition()
+            }
+        } else if firstLine.starts(with: "function ") || firstLine.starts(with: "const ") ||
+                  firstLine.starts(with: "let ") || firstLine.starts(with: "var ") ||
+                  content.contains("console.log(") {
+            // JavaScript patterns
+            if let jsLang = LanguageManager.shared.detectLanguage(for: "temp.js") {
+                self.language = jsLang.toLanguageDefinition()
+            }
+        } else if firstLine.starts(with: "<!DOCTYPE") || firstLine.starts(with: "<html") {
+            // HTML
+            if let htmlLang = LanguageManager.shared.detectLanguage(for: "temp.html") {
+                self.language = htmlLang.toLanguageDefinition()
+            }
+        }
     }
     
     func markAsSaved() {
@@ -90,15 +120,12 @@ class Document: ObservableObject, Identifiable {
         // Use the new LanguageManager to detect language
         if let nppLanguage = LanguageManager.shared.detectLanguage(for: url.lastPathComponent) {
             language = nppLanguage.toLanguageDefinition()
-            print("DEBUG: Language detected on save: \(nppLanguage.name)")
         } else {
             // Try the old language manager as fallback
             if let oldLanguage = OldLanguageManager.shared.detectLanguage(for: url) {
                 language = oldLanguage
-                print("DEBUG: Language detected on save (fallback): \(oldLanguage.name)")
             } else {
                 language = nil
-                print("DEBUG: No language detected on save for \(url.lastPathComponent)")
             }
         }
         try await save()
