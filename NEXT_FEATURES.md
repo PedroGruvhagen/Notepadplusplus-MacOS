@@ -1,7 +1,7 @@
 # Next Features Priority List
 
 ## 🎯 Current Task: Ready for Next Feature
-Code Folding completed successfully!
+Advanced Search features completed successfully!
 
 ## Priority Order (User Approved 2025-08-15)
 
@@ -52,11 +52,13 @@ Code Folding completed successfully!
 - [x] Support for multiple languages (C-style, Python, XML, Ruby, YAML)
 - [x] Toggle via View menu with keyboard shortcuts
 
-### 6. Advanced Search
-- [ ] Find in Files
-- [ ] Search history
-- [ ] Bookmarks
-- [ ] Mark all occurrences
+### 6. Advanced Search ✅ COMPLETED (2025-08-15)
+- [x] Find in Files with directory traversal and filters
+- [x] Search history with persistent storage
+- [x] Bookmarks system with line-level markers
+- [x] Mark all occurrences highlighting
+- [x] Keyboard shortcuts for all features
+- [x] Context-aware search results display
 
 ### 7. Session Management
 - [ ] Save open tabs

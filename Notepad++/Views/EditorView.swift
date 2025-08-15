@@ -11,10 +11,13 @@ struct EditorView: View {
     @ObservedObject var document: Document
     @FocusState private var isEditorFocused: Bool
     @ObservedObject private var settings = AppSettings.shared
+    @StateObject private var searchManager = SearchManager.shared
     @State private var fontSize: CGFloat = 13
     @State private var enableSyntaxHighlighting = true
     @State private var showFindReplace = false
     @State private var showReplaceBar = false
+    @State private var showFindInFiles = false
+    @State private var showBookmarks = false
     
     private let syntaxHighlighter = SyntaxHighlighter()
     
@@ -87,6 +90,18 @@ struct EditorView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .unfoldAll)) { _ in
             document.foldingState.unfoldAll()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showFindInFiles)) { _ in
+            showFindInFiles = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showBookmarks)) { _ in
+            showBookmarks = true
+        }
+        .sheet(isPresented: $showFindInFiles) {
+            FindInFilesView()
+        }
+        .sheet(isPresented: $showBookmarks) {
+            BookmarksView()
         }
         .toolbar {
             ToolbarItemGroup {
