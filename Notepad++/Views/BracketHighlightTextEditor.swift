@@ -59,9 +59,13 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         
-        if textView.string != text {
+        // Only update text if it's actually different and not currently being edited
+        // This prevents overwriting user input while typing
+        if !context.coordinator.isUpdating && textView.string != text {
+            context.coordinator.isUpdating = true
             textView.string = text
             context.coordinator.updateBracketHighlighting()
+            context.coordinator.isUpdating = false
         }
         
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
@@ -75,6 +79,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         var parent: BracketHighlightTextEditor
         weak var textView: NSTextView?
         var currentMatchingBracket: NSRange?
+        var isUpdating = false
         
         init(_ parent: BracketHighlightTextEditor) {
             self.parent = parent
@@ -82,8 +87,11 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            parent.onTextChange(textView.string)
-            updateBracketHighlighting()
+            // Prevent feedback loop when updating from code
+            if !isUpdating {
+                parent.onTextChange(textView.string)
+                updateBracketHighlighting()
+            }
         }
         
         func textViewDidChangeSelection(_ notification: Notification) {
