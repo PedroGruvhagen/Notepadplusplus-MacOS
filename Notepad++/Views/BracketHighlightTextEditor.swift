@@ -124,6 +124,11 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         
         context.coordinator.textView = textView
         
+        // Configure auto-completion
+        if AppSettings.shared.enableAutoCompletion {
+            AutoCompletionEngine.shared.configure(for: textView)
+        }
+        
         // Apply initial syntax highlighting if enabled
         if syntaxHighlightingEnabled, let language = language {
             context.coordinator.applySyntaxHighlighting(textView: textView, language: language)
