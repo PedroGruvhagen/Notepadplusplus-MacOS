@@ -13,6 +13,9 @@ struct EditorView: View {
     @State private var fontSize: CGFloat = 13
     @State private var showLineNumbers = true
     @State private var wordWrap = true
+    @State private var enableSyntaxHighlighting = true
+    
+    private let syntaxHighlighter = SyntaxHighlighter()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -24,22 +27,36 @@ struct EditorView: View {
                     
                     Divider()
                     
-                    TextEditor(text: Binding(
-                        get: { document.content },
-                        set: { document.updateContent($0) }
-                    ))
-                    .font(.system(size: fontSize, weight: .regular, design: .monospaced))
+                    SyntaxTextEditor(
+                        text: Binding(
+                            get: { document.content },
+                            set: { _ in } // Handled by onTextChange
+                        ),
+                        language: document.language,
+                        fontSize: fontSize,
+                        syntaxHighlightingEnabled: enableSyntaxHighlighting,
+                        onTextChange: { newText in
+                            document.updateContent(newText)
+                        }
+                    )
                     .focused($isEditorFocused)
                     .onAppear {
                         isEditorFocused = true
                     }
                 }
             } else {
-                TextEditor(text: Binding(
-                    get: { document.content },
-                    set: { document.updateContent($0) }
-                ))
-                .font(.system(size: fontSize, weight: .regular, design: .monospaced))
+                SyntaxTextEditor(
+                    text: Binding(
+                        get: { document.content },
+                        set: { _ in } // Handled by onTextChange
+                    ),
+                    language: document.language,
+                    fontSize: fontSize,
+                    syntaxHighlightingEnabled: enableSyntaxHighlighting,
+                    onTextChange: { newText in
+                        document.updateContent(newText)
+                    }
+                )
                 .focused($isEditorFocused)
                 .onAppear {
                     isEditorFocused = true
@@ -59,6 +76,11 @@ struct EditorView: View {
                     Image(systemName: "text.wrap")
                 }
                 .help("Toggle Word Wrap")
+                
+                Button(action: { enableSyntaxHighlighting.toggle() }) {
+                    Image(systemName: enableSyntaxHighlighting ? "paintbrush.fill" : "paintbrush")
+                }
+                .help("Toggle Syntax Highlighting")
                 
                 Divider()
                 
