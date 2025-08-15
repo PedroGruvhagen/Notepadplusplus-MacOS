@@ -13,7 +13,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
     let fontSize: CGFloat
     let language: LanguageDefinition?
     let syntaxHighlightingEnabled: Bool
-    let onTextChange: (String) -> Void
+    let onTextChange: ((String) -> Void)?
     
     private let bracketMatcher = BracketMatcher.shared
     
@@ -98,11 +98,17 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         
+        print("DEBUG updateNSView: isUserTyping=\(context.coordinator.isUserTyping), textView.string.count=\(textView.string.count), text.count=\(text.count), different=\(textView.string != text)")
+        
         // Update font if size changed
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         
         // Only update text if it's different AND we're not typing
         if !context.coordinator.isUserTyping && textView.string != text {
+            print("DEBUG: REPLACING TEXT! Old count: \(textView.string.count), New count: \(text.count)")
+            print("DEBUG: Old text preview: \(String(textView.string.prefix(50)))")
+            print("DEBUG: New text preview: \(String(text.prefix(50)))")
+            
             context.coordinator.isUpdating = true
             
             // Save selection and scroll position
@@ -145,21 +151,35 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             
-            // Prevent recursive updates
-            if isUpdating { return }
+            print("DEBUG textDidChange: isUpdating=\(isUpdating), text.count=\(textView.string.count)")
             
+            // Prevent recursive updates
+            if isUpdating { 
+                print("DEBUG: Skipping textDidChange because isUpdating=true")
+                return 
+            }
+            
+            // Mark that we're typing and shouldn't accept external updates
             isUserTyping = true
             
-            // Update through the binding (which now properly updates the document)
+            // Update through the binding
             let newText = textView.string
-            if parent.text != newText {
-                parent.text = newText
+            print("DEBUG: textDidChange updating: old=\(parent.text.count), new=\(newText.count)")
+            
+            // IMPORTANT: Update the binding synchronously
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.parent.text = newText
+                
+                // Call the optional onTextChange if provided
+                self.parent.onTextChange?(newText)
             }
             
             updateBracketHighlighting()
             
-            // Reset typing flag after a delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            // Keep the typing flag active longer to prevent race conditions
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                print("DEBUG: Resetting isUserTyping flag")
                 self?.isUserTyping = false
             }
         }
