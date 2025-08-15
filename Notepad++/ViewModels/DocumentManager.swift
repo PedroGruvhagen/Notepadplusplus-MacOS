@@ -145,7 +145,7 @@ class DocumentManager: ObservableObject {
                 }
             } else {
                 // For untitled documents, show save dialog
-                await saveDocumentAs(for: tab)
+                await saveDocumentAs(tab)
             }
         }
     }
