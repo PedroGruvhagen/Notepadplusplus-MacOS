@@ -16,8 +16,10 @@ class Document: ObservableObject, Identifiable {
     @Published var isModified: Bool = false
     @Published var fileName: String
     @Published var fileExtension: String?
+    @Published var language: LanguageDefinition?
     
     private var lastSavedContent: String
+    private let languageManager = LanguageManager.shared
     
     init(content: String = "", filePath: URL? = nil) {
         self.content = content
@@ -27,9 +29,11 @@ class Document: ObservableObject, Identifiable {
         if let path = filePath {
             self.fileName = path.lastPathComponent
             self.fileExtension = path.pathExtension.isEmpty ? nil : path.pathExtension
+            self.language = languageManager.detectLanguage(for: path)
         } else {
             self.fileName = "Untitled"
             self.fileExtension = nil
+            self.language = nil
         }
     }
     
@@ -56,6 +60,7 @@ class Document: ObservableObject, Identifiable {
         filePath = url
         fileName = url.lastPathComponent
         fileExtension = url.pathExtension.isEmpty ? nil : url.pathExtension
+        language = languageManager.detectLanguage(for: url)
         try await save()
     }
     
