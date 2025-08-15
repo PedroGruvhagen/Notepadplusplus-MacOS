@@ -10,22 +10,34 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var documentManager = DocumentManager()
     @StateObject private var settingsManager = SettingsManager.shared
+    @ObservedObject private var settings = AppSettings.shared
     @State private var searchText = ""
     @State private var isShowingSettings = false
     
     var body: some View {
         VStack(spacing: 0) {
-            TabBarView(documentManager: documentManager)
-            
-            Divider()
+            if settings.showTabBar {
+                if settings.tabBarPosition == .top {
+                    TabBarView(documentManager: documentManager)
+                    Divider()
+                }
+            }
             
             if let activeTab = documentManager.activeTab {
                 EditorView(document: activeTab.document)
             } else {
                 EmptyStateView()
             }
+            
+            if settings.showTabBar {
+                if settings.tabBarPosition == .bottom {
+                    Divider()
+                    TabBarView(documentManager: documentManager)
+                }
+            }
         }
         .frame(minWidth: 800, minHeight: 600)
+        .toolbar(settings.showToolbar ? .visible : .hidden)
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
                 Button(action: {
