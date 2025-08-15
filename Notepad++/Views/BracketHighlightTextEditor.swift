@@ -11,6 +11,15 @@ import AppKit
 struct BracketHighlightTextEditor: NSViewRepresentable {
     @Binding var text: String
     let fontSize: CGFloat
+    var fontName: String = "Menlo"
+    var wordWrap: Bool = false
+    var showWhitespace: Bool = false
+    var showEndOfLine: Bool = false
+    var highlightCurrentLine: Bool = true
+    var currentLineColor: String = "#F0F0F0"
+    var showIndentGuides: Bool = true
+    var caretWidth: CGFloat = 1.0
+    var scrollBeyondLastLine: Bool = false
     let language: LanguageDefinition?
     let syntaxHighlightingEnabled: Bool
     let onTextChange: ((String) -> Void)?
@@ -31,7 +40,8 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         textView.allowsUndo = true
         
         // Text appearance
-        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        let font = NSFont(name: fontName, size: fontSize) ?? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        textView.font = font
         textView.textColor = NSColor.labelColor
         textView.backgroundColor = NSColor.textBackgroundColor
         textView.insertionPointColor = NSColor.labelColor
@@ -52,19 +62,37 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         // Set initial text
         textView.string = text
         
-        // Configure text container for proper layout
+        // Configure word wrap
         if let textContainer = textView.textContainer {
-            textContainer.containerSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-            textContainer.widthTracksTextView = true
+            if wordWrap {
+                textContainer.containerSize = CGSize(width: scrollView.frame.width, height: CGFloat.greatestFiniteMagnitude)
+                textContainer.widthTracksTextView = true
+                textView.isHorizontallyResizable = false
+                textView.autoresizingMask = [.width]
+            } else {
+                textContainer.containerSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+                textContainer.widthTracksTextView = false
+                textView.isHorizontallyResizable = true
+                textView.autoresizingMask = []
+            }
             textContainer.heightTracksTextView = false
+        }
+        
+        // Configure caret width
+        if let layoutManager = textView.layoutManager {
+            layoutManager.showsInvisibleCharacters = showWhitespace || showEndOfLine
         }
         
         // Configure layout manager
         textView.minSize = CGSize(width: 0, height: 0)
         textView.maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
-        textView.autoresizingMask = [.width]
+        
+        // Store additional settings in coordinator
+        context.coordinator.highlightCurrentLine = highlightCurrentLine
+        context.coordinator.currentLineColor = currentLineColor
+        context.coordinator.showIndentGuides = showIndentGuides
+        context.coordinator.scrollBeyondLastLine = scrollBeyondLastLine
         
         // Set delegate
         textView.delegate = context.coordinator
@@ -99,8 +127,33 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         
         
-        // Update font if size changed
-        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        // Update font if size or name changed
+        let font = NSFont(name: fontName, size: fontSize) ?? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        textView.font = font
+        
+        // Update word wrap
+        if let textContainer = textView.textContainer {
+            if wordWrap {
+                textContainer.containerSize = CGSize(width: scrollView.frame.width, height: CGFloat.greatestFiniteMagnitude)
+                textContainer.widthTracksTextView = true
+                textView.isHorizontallyResizable = false
+            } else {
+                textContainer.containerSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+                textContainer.widthTracksTextView = false
+                textView.isHorizontallyResizable = true
+            }
+        }
+        
+        // Update whitespace visibility
+        if let layoutManager = textView.layoutManager {
+            layoutManager.showsInvisibleCharacters = showWhitespace || showEndOfLine
+        }
+        
+        // Update coordinator settings
+        context.coordinator.highlightCurrentLine = highlightCurrentLine
+        context.coordinator.currentLineColor = currentLineColor
+        context.coordinator.showIndentGuides = showIndentGuides
+        context.coordinator.scrollBeyondLastLine = scrollBeyondLastLine
         
         // Only update text if it's different AND we're not typing AND the new text is actually newer
         if !context.coordinator.isUserTyping && textView.string != text {
@@ -147,6 +200,11 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         var currentMatchingBracket: NSRange?
         var isUpdating = false
         var isUserTyping = false
+        var highlightCurrentLine = true
+        var currentLineColor = "#F0F0F0"
+        var showIndentGuides = true
+        var scrollBeyondLastLine = false
+        var currentLineRange: NSRange?
         
         init(_ parent: BracketHighlightTextEditor) {
             self.parent = parent
@@ -176,6 +234,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             }
             
             updateBracketHighlighting()
+            updateCurrentLineHighlight()
             
             // Keep the typing flag active longer to prevent race conditions
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -185,6 +244,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         
         func textViewDidChangeSelection(_ notification: Notification) {
             updateBracketHighlighting()
+            updateCurrentLineHighlight()
         }
         
         func updateBracketHighlighting() {
@@ -394,6 +454,36 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
                     textView.setSelectedRange(NSRange(location: matchingPos, length: 0))
                     textView.scrollRangeToVisible(NSRange(location: matchingPos, length: 1))
                 }
+            }
+        }
+        
+        func updateCurrentLineHighlight() {
+            guard let textView = textView,
+                  highlightCurrentLine else { return }
+            
+            let text = textView.string as NSString
+            let selectedRange = textView.selectedRange()
+            
+            // Remove previous line highlight
+            if let previousRange = currentLineRange,
+               let textStorage = textView.textStorage {
+                textStorage.removeAttribute(.backgroundColor, range: previousRange)
+            }
+            
+            // Find current line range
+            var lineStart = 0
+            var lineEnd = 0
+            var contentsEnd = 0
+            text.getLineStart(&lineStart, end: &lineEnd, contentsEnd: &contentsEnd,
+                            for: NSRange(location: selectedRange.location, length: 0))
+            
+            let lineRange = NSRange(location: lineStart, length: lineEnd - lineStart)
+            currentLineRange = lineRange
+            
+            // Apply highlight to current line
+            if let textStorage = textView.textStorage {
+                let color = NSColor(hex: currentLineColor) ?? NSColor(white: 0.95, alpha: 1.0)
+                textStorage.addAttribute(.backgroundColor, value: color, range: lineRange)
             }
         }
     }
