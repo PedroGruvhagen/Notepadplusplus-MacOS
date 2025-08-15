@@ -28,6 +28,15 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         textView.allowsUndo = true
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.string = text
+        textView.textColor = NSColor.labelColor
+        textView.backgroundColor = NSColor.textBackgroundColor
+        textView.insertionPointColor = NSColor.labelColor
+        
+        // Configure text container for word wrap
+        if let textContainer = textView.textContainer {
+            textContainer.widthTracksTextView = true
+            textContainer.containerSize = CGSize(width: scrollView.frame.width, height: CGFloat.greatestFiniteMagnitude)
+        }
         
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
