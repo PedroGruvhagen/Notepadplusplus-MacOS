@@ -9,6 +9,13 @@ import SwiftUI
 
 @main
 struct Notepad__App: App {
+    @StateObject private var backupManager = BackupManager.shared
+    
+    init() {
+        // Restore session on app launch
+        BackupManager.shared.restoreSession()
+    }
+    
     var body: some Scene {
         WindowGroup("Notepad++") {
             ContentView()
@@ -362,6 +369,7 @@ struct Notepad__App: App {
 }
 
 extension Notification.Name {
+    static let settingsDidChange = Notification.Name("settingsDidChange")
     static let showPreferences = Notification.Name("showPreferences")
     static let newDocument = Notification.Name("newDocument")
     static let openDocument = Notification.Name("openDocument")

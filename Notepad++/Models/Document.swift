@@ -21,7 +21,7 @@ class Document: ObservableObject, Identifiable {
             }
         }
     }
-    @Published var filePath: URL?
+    @Published var fileURL: URL? // Renamed from filePath for consistency
     @Published var isModified: Bool = false
     @Published var fileName: String
     @Published var fileExtension: String?
@@ -32,7 +32,7 @@ class Document: ObservableObject, Identifiable {
     
     init(content: String = "", filePath: URL? = nil) {
         self.content = content
-        self.filePath = filePath
+        self.fileURL = filePath
         self.lastSavedContent = content
         
         if let path = filePath {
@@ -65,7 +65,7 @@ class Document: ObservableObject, Identifiable {
         isModified = (newContent != lastSavedContent)
         
         // Auto-detect language for new documents based on content
-        if language == nil && filePath == nil {
+        if language == nil && fileURL == nil {
             detectLanguageFromContent()
         }
     }
@@ -102,9 +102,12 @@ class Document: ObservableObject, Identifiable {
     }
     
     func save() async throws {
-        guard let url = filePath else {
+        guard let url = fileURL else {
             throw DocumentError.noFilePath
         }
+        
+        // Create backup before saving
+        BackupManager.shared.createBackup(for: self)
         
         let contentToSave = content
         try await Task {
@@ -114,7 +117,7 @@ class Document: ObservableObject, Identifiable {
     }
     
     func saveAs(to url: URL) async throws {
-        filePath = url
+        fileURL = url
         fileName = url.lastPathComponent
         fileExtension = url.pathExtension.isEmpty ? nil : url.pathExtension
         // Use the new LanguageManager to detect language
