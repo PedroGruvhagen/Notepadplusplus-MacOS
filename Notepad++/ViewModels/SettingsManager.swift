@@ -209,7 +209,3 @@ class SettingsManager: ObservableObject {
         return ["Plain Text", "Swift", "JavaScript", "Python", "Java", "C++", "HTML", "CSS", "JSON", "XML", "Markdown"]
     }
 }
-
-extension Notification.Name {
-    static let settingsDidChange = Notification.Name("settingsDidChange")
-}
