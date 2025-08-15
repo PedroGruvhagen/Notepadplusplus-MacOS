@@ -99,9 +99,10 @@ iOSInjectionProject/
 .AppleDouble
 .LSOverride
 
-# Documentation files (except README.md)
+# Documentation files (except README.md and CONTRIBUTING.md)
 *.md
 !README.md
+!CONTRIBUTING.md
 
 # Icon must end with two \r
 Icon
