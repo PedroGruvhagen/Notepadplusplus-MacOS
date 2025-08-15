@@ -44,15 +44,16 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         textView.importsGraphics = false
         textView.allowsUndo = true
         
-        // Text appearance
+        // Text appearance with theme support
+        let theme = ThemeManager.shared.currentTheme
         let font = NSFont(name: fontName, size: fontSize) ?? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.font = font
-        textView.textColor = NSColor.labelColor
-        textView.backgroundColor = NSColor.textBackgroundColor
+        textView.textColor = theme.textColor
+        textView.backgroundColor = theme.backgroundColor
         textView.insertionPointColor = NSColor.labelColor
         textView.selectedTextAttributes = [
-            .backgroundColor: NSColor.selectedTextBackgroundColor,
-            .foregroundColor: NSColor.selectedTextColor
+            .backgroundColor: theme.selectionColor,
+            .foregroundColor: theme.textColor
         ]
         
         // Disable auto substitutions
@@ -296,7 +297,8 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         }
         
         func updateBracketHighlighting() {
-            guard let textView = textView else { return }
+            guard let textView = textView,
+                  AppSettings.shared.matchBraces else { return }
             let text = textView.string
             let selectedRange = textView.selectedRange()
             
@@ -365,17 +367,20 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         }
         
         func applySyntaxHighlighting(textView: NSTextView, language: LanguageDefinition) {
-            guard let textStorage = textView.textStorage else { return }
-            let text = textView.string
+            guard let textStorage = textView.textStorage,
+                  AppSettings.shared.syntaxHighlighting else { return }
             
-            // Reset to default color
+            let text = textView.string
+            let theme = ThemeManager.shared.currentTheme
+            
+            // Reset to theme default text color
             textStorage.addAttribute(.foregroundColor,
-                                    value: NSColor.labelColor,
+                                    value: theme.textColor,
                                     range: NSRange(location: 0, length: text.count))
             
-            // Apply keyword highlighting
+            // Apply keyword highlighting with theme colors
             for keywordSet in language.keywords {
-                let color = colorForKeywordType(keywordSet.name)
+                let color = theme.colorForTokenType(keywordSet.name)
                 
                 for keyword in keywordSet.keywords {
                     let pattern = "\\b\(NSRegularExpression.escapedPattern(for: keyword))\\b"
@@ -409,22 +414,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         }
         
         private func colorForKeywordType(_ type: String) -> NSColor {
-            switch type.lowercased() {
-            case "keywords", "instruction", "instre1":
-                return .systemPurple
-            case "types", "type", "type1", "type2":
-                return .systemBlue
-            case "literals", "literal":
-                return .systemOrange
-            case "comments", "comment":
-                return .systemGreen
-            case "strings", "string":
-                return .systemRed
-            case "functions", "function":
-                return .systemIndigo
-            default:
-                return .systemTeal
-            }
+            return ThemeManager.shared.currentTheme.colorForTokenType(type)
         }
         
         private func highlightStrings(in textStorage: NSTextStorage, text: String) {
@@ -530,7 +520,8 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             
             // Apply highlight to current line
             if let textStorage = textView.textStorage {
-                let color = NSColor(hex: currentLineColor) ?? NSColor(white: 0.95, alpha: 1.0)
+                // Use custom color if set, otherwise use theme color
+                let color = NSColor(hex: currentLineColor) ?? ThemeManager.shared.currentTheme.currentLineColor
                 textStorage.addAttribute(.backgroundColor, value: color, range: lineRange)
             }
         }
