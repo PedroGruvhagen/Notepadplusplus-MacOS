@@ -12,7 +12,16 @@ import SwiftUI
 class Document: ObservableObject, Identifiable {
     let id = UUID()
     
-    @Published var content: String
+    @Published var content: String {
+        didSet {
+            print("DEBUG Document.content didSet: old=\(oldValue.count), new=\(content.count)")
+            // Detect if content is being reset to original file content
+            if content.count == 29 && oldValue.count > 29 && content == lastSavedContent {
+                print("ERROR: Content being reset to original! Reverting...")
+                content = oldValue
+            }
+        }
+    }
     @Published var filePath: URL?
     @Published var isModified: Bool = false
     @Published var fileName: String
@@ -52,6 +61,7 @@ class Document: ObservableObject, Identifiable {
     }
     
     func updateContent(_ newContent: String) {
+        print("DEBUG Document.updateContent: old=\(content.count), new=\(newContent.count), isModified=\(newContent != lastSavedContent)")
         content = newContent
         isModified = (newContent != lastSavedContent)
     }

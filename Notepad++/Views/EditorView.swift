@@ -18,6 +18,7 @@ struct EditorView: View {
     @State private var showReplaceBar = false
     @State private var showFindInFiles = false
     @State private var showBookmarks = false
+    @State private var localContent: String = ""
     
     private let syntaxHighlighter = SyntaxHighlighter()
     
@@ -41,17 +42,19 @@ struct EditorView: View {
                     
                     BracketHighlightTextEditor(
                         text: Binding(
-                            get: { document.content },
+                            get: { 
+                                print("DEBUG EditorView Binding GET: doc.id=\(document.id), content.count=\(document.content.count)")
+                                return document.content 
+                            },
                             set: { newText in 
+                                print("DEBUG EditorView Binding SET: doc.id=\(document.id), newText.count=\(newText.count)")
                                 document.updateContent(newText)
                             }
                         ),
                         fontSize: fontSize,
                         language: document.language,
                         syntaxHighlightingEnabled: enableSyntaxHighlighting && settings.syntaxHighlighting,
-                        onTextChange: { _ in
-                            // Already handled by binding setter
-                        }
+                        onTextChange: nil
                     )
                     .focused($isEditorFocused)
                     .onAppear {
@@ -61,17 +64,19 @@ struct EditorView: View {
             } else {
                 BracketHighlightTextEditor(
                     text: Binding(
-                        get: { document.content },
+                        get: { 
+                            print("DEBUG EditorView Binding GET (no line numbers): content.count=\(document.content.count)")
+                            return document.content 
+                        },
                         set: { newText in
+                            print("DEBUG EditorView Binding SET (no line numbers): newText.count=\(newText.count)")
                             document.updateContent(newText)
                         }
                     ),
                     fontSize: fontSize,
                     language: document.language,
                     syntaxHighlightingEnabled: settings.syntaxHighlighting,
-                    onTextChange: { _ in
-                        // Already handled by binding setter
-                    }
+                    onTextChange: nil
                 )
                 .focused($isEditorFocused)
                 .onAppear {
