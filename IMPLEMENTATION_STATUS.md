@@ -48,6 +48,19 @@
 
 None currently active
 
+## ✅ RECENTLY COMPLETED (2025-08-16 - Session 6)
+
+### Session Management (Issue #12)
+- ✅ **Session persistence** - Save open tabs on app quit
+- ✅ **Session restoration** - Restore tabs on app launch
+- ✅ **Position tracking** - Save caret and scroll positions
+- ✅ **Selection preservation** - Save and restore text selection
+- ✅ **Active tab memory** - Remember which tab was active
+- ✅ **File change detection** - Reload from disk if file exists
+- ✅ **Encoding/EOL preservation** - Maintain file settings across sessions
+- ✅ **Auto-save on termination** - Save session when app closes
+- ✅ **Configurable via settings** - Controlled by "Remember Last Session" preference
+
 ## ✅ RECENTLY COMPLETED (2025-08-16 - Session 5)
 
 ### File Encoding Detection (Issue #8)

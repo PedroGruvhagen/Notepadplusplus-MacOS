@@ -18,6 +18,23 @@ class BackupManager: ObservableObject {
     init() {
         setupTimers()
         observeSettingsChanges()
+        observeAppTermination()
+    }
+    
+    private func observeAppTermination() {
+        // Save session when app is about to terminate
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillTerminate),
+            name: NSApplication.willTerminateNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func appWillTerminate() {
+        Task { @MainActor in
+            saveSessionSnapshot()
+        }
     }
     
     private func observeSettingsChanges() {
@@ -79,7 +96,7 @@ class BackupManager: ObservableObject {
     }
     
     @MainActor
-    private func saveSessionSnapshot() {
+    func saveSessionSnapshot() {
         let documentManager = DocumentManager.shared
         
         // Create session data
@@ -90,7 +107,14 @@ class BackupManager: ObservableObject {
                 "content": tab.document.content,
                 "fileName": tab.document.fileName,
                 "language": tab.document.language?.name ?? "Plain Text",
-                "isModified": tab.document.isModified
+                "isModified": tab.document.isModified,
+                "caretPosition": tab.document.caretPosition,
+                "scrollX": tab.document.scrollPosition.x,
+                "scrollY": tab.document.scrollPosition.y,
+                "selectedLocation": tab.document.selectedRange.location,
+                "selectedLength": tab.document.selectedRange.length,
+                "encoding": tab.document.encoding.rawValue,
+                "eolType": tab.document.eolType.rawValue
             ]
             
             if let url = tab.document.fileURL {
@@ -98,6 +122,16 @@ class BackupManager: ObservableObject {
             }
             
             sessionData.append(tabData)
+        }
+        
+        // Also save the active tab index
+        if let activeTab = documentManager.activeTab,
+           let activeIndex = documentManager.tabs.firstIndex(where: { $0.id == activeTab.id }) {
+            let metadata: [String: Any] = ["activeTabIndex": activeIndex]
+            if let metaData = try? JSONSerialization.data(withJSONObject: metadata) {
+                let metaURL = getSessionSnapshotURL().deletingPathExtension().appendingPathExtension("meta.json")
+                try? metaData.write(to: metaURL)
+            }
         }
         
         // Save session to disk
@@ -127,13 +161,55 @@ class BackupManager: ObservableObject {
                     let documentManager = DocumentManager.shared
                     
                     for tabData in sessionData {
-                        let document = Document()
-                        document.content = tabData["content"] as? String ?? ""
+                        // If file path exists, try to load from disk for fresh content
+                        let document: Document
+                        if let filePath = tabData["filePath"] as? String {
+                            let fileURL = URL(fileURLWithPath: filePath)
+                            if FileManager.default.fileExists(atPath: filePath) {
+                                // Load fresh content from disk
+                                do {
+                                    document = try await Document.open(from: fileURL)
+                                } catch {
+                                    // Fall back to saved content
+                                    document = Document()
+                                    document.content = tabData["content"] as? String ?? ""
+                                    document.fileURL = fileURL
+                                }
+                            } else {
+                                // File doesn't exist anymore, use saved content
+                                document = Document()
+                                document.content = tabData["content"] as? String ?? ""
+                                document.fileURL = fileURL
+                            }
+                        } else {
+                            // No file path, create new document with saved content
+                            document = Document()
+                            document.content = tabData["content"] as? String ?? ""
+                        }
+                        
+                        // Restore document properties
                         document.fileName = tabData["fileName"] as? String ?? "Untitled"
                         document.isModified = tabData["isModified"] as? Bool ?? false
                         
-                        if let filePath = tabData["filePath"] as? String {
-                            document.fileURL = URL(fileURLWithPath: filePath)
+                        // Restore position data
+                        document.caretPosition = tabData["caretPosition"] as? Int ?? 0
+                        document.scrollPosition = CGPoint(
+                            x: tabData["scrollX"] as? CGFloat ?? 0,
+                            y: tabData["scrollY"] as? CGFloat ?? 0
+                        )
+                        document.selectedRange = NSRange(
+                            location: tabData["selectedLocation"] as? Int ?? 0,
+                            length: tabData["selectedLength"] as? Int ?? 0
+                        )
+                        
+                        // Restore encoding and EOL
+                        if let encodingRaw = tabData["encoding"] as? Int,
+                           let encoding = FileEncoding(rawValue: encodingRaw) {
+                            document.encoding = encoding
+                        }
+                        if let eolRaw = tabData["eolType"] as? Int,
+                           let eol = EOLType(rawValue: eolRaw) {
+                            document.eolType = eol
                         }
                         
                         if let _ = tabData["language"] as? String {
@@ -144,10 +220,17 @@ class BackupManager: ObservableObject {
                         
                         let tab = EditorTab(document: document)
                         documentManager.tabs.append(tab)
-                        
-                        if documentManager.activeTab == nil {
-                            documentManager.activeTab = tab
-                        }
+                    }
+                    
+                    // Restore active tab
+                    let metaURL = getSessionSnapshotURL().deletingPathExtension().appendingPathExtension("meta.json")
+                    if let metaData = try? Data(contentsOf: metaURL),
+                       let metadata = try? JSONSerialization.jsonObject(with: metaData) as? [String: Any],
+                       let activeIndex = metadata["activeTabIndex"] as? Int,
+                       activeIndex < documentManager.tabs.count {
+                        documentManager.activeTab = documentManager.tabs[activeIndex]
+                    } else if !documentManager.tabs.isEmpty {
+                        documentManager.activeTab = documentManager.tabs.first
                     }
                 }
             }
