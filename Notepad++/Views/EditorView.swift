@@ -23,7 +23,11 @@ struct EditorView: View {
     @State private var showBookmarks = false
     @State private var localContent: String = ""
     
-    private let syntaxHighlighter = SyntaxHighlighter()
+    // Each document gets its own syntax highlighter instance
+    // This mirrors Notepad++ where each buffer has its own lexer state
+    private var syntaxHighlighter: SyntaxHighlighter {
+        document.syntaxHighlighter
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -43,13 +47,8 @@ struct EditorView: View {
                     
                     Divider()
                     
-                    BracketHighlightTextEditor(
-                        text: Binding(
-                            get: { document.content },
-                            set: { newText in 
-                                document.updateContent(newText)
-                            }
-                        ),
+                    DocumentTextEditor(
+                        document: document,
                         fontSize: CGFloat(settings.fontSize),
                         fontName: settings.fontName,
                         wordWrap: settings.wordWrap,
@@ -65,9 +64,7 @@ struct EditorView: View {
                         maintainIndent: settings.maintainIndent,
                         autoIndent: settings.autoIndent,
                         smartIndent: settings.smartIndent,
-                        language: document.language,
-                        syntaxHighlightingEnabled: optimizedSettings.syntaxHighlighting,
-                        onTextChange: nil
+                        syntaxHighlightingEnabled: optimizedSettings.syntaxHighlighting
                     )
                     .focused($isEditorFocused)
                     .onAppear {
@@ -75,13 +72,8 @@ struct EditorView: View {
                     }
                 }
             } else {
-                BracketHighlightTextEditor(
-                    text: Binding(
-                        get: { document.content },
-                        set: { newText in
-                            document.updateContent(newText)
-                        }
-                    ),
+                DocumentTextEditor(
+                    document: document,
                     fontSize: CGFloat(settings.fontSize),
                     fontName: settings.fontName,
                     wordWrap: settings.wordWrap,
@@ -97,9 +89,7 @@ struct EditorView: View {
                     maintainIndent: settings.maintainIndent,
                     autoIndent: settings.autoIndent,
                     smartIndent: settings.smartIndent,
-                    language: document.language,
-                    syntaxHighlightingEnabled: optimizedSettings.syntaxHighlighting,
-                    onTextChange: nil
+                    syntaxHighlightingEnabled: optimizedSettings.syntaxHighlighting
                 )
                 .focused($isEditorFocused)
                 .onAppear {

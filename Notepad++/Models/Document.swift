@@ -8,10 +8,16 @@
 import Foundation
 import SwiftUI
 import CoreGraphics
+import AppKit
 
 @MainActor
 class Document: ObservableObject, Identifiable {
     let id = UUID()
+    
+    // CRITICAL FIX: Each document owns its own NSTextStorage
+    // This is the Swift equivalent of Scintilla Document in Notepad++
+    // Mirrors Buffer._doc from Buffer.h line 395
+    let textStorage: NSTextStorage
     
     @Published var content: String {
         didSet {
@@ -34,9 +40,20 @@ class Document: ObservableObject, Identifiable {
     @Published var scrollPosition: CGPoint = .zero  // Scroll position
     @Published var selectedRange: NSRange = NSRange(location: 0, length: 0)  // Selected text range
     
+    // Each document has its own syntax highlighter instance
+    // This mirrors Notepad++ where each Buffer has its own lexer state
+    let syntaxHighlighter = SyntaxHighlighter()
+    
+    // Document view state (preserved across tab switches)
+    @Published var documentScrollPosition: NSPoint = .zero
+    @Published var documentSelectedRange: NSRange = NSRange(location: 0, length: 0)
+    @Published var documentVisibleRect: NSRect = .zero
+    
     private var lastSavedContent: String
     
     init(content: String = "", filePath: URL? = nil) {
+        // Initialize NSTextStorage with content
+        self.textStorage = NSTextStorage(string: content)
         self.content = content
         self.fileURL = filePath
         self.lastSavedContent = content
@@ -71,6 +88,12 @@ class Document: ObservableObject, Identifiable {
             return
         }
         content = newContent
+        
+        // Update NSTextStorage
+        textStorage.beginEditing()
+        textStorage.replaceCharacters(in: NSRange(location: 0, length: textStorage.length), with: newContent)
+        textStorage.endEditing()
+        
         isModified = (newContent != lastSavedContent)
         
         // Auto-detect language for new documents based on content
@@ -172,6 +195,69 @@ class Document: ObservableObject, Identifiable {
         content = convertedContent
         eolType = newEOL
         isModified = true
+    }
+    
+    // MARK: - Document State Management (Port of ScintillaEditView::saveCurrentPos)
+    
+    /// Save the current state from the text view (before switching tabs)
+    /// Port of ScintillaEditView::saveCurrentPos() from ScintillaEditView.cpp
+    func saveState(from textView: NSTextView) {
+        documentSelectedRange = textView.selectedRange()
+        if let scrollView = textView.enclosingScrollView {
+            documentScrollPosition = scrollView.contentView.bounds.origin
+        }
+        documentVisibleRect = textView.visibleRect
+        
+        // Update content from text view
+        let currentContent = textView.string
+        if currentContent != content {
+            updateContent(currentContent)
+        }
+    }
+    
+    /// Restore the saved state to the text view (after switching to this tab)
+    /// Port of ScintillaEditView::restoreCurrentPos() from ScintillaEditView.cpp
+    func restoreState(to textView: NSTextView) {
+        // Restore selection
+        if documentSelectedRange.location <= textView.string.count {
+            textView.setSelectedRange(documentSelectedRange)
+        }
+        
+        // Restore scroll position
+        if let scrollView = textView.enclosingScrollView {
+            scrollView.contentView.scroll(to: documentScrollPosition)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        }
+    }
+    
+    /// Activate this document in the text view (port of ScintillaEditView::activateBuffer)
+    /// This is the CRITICAL method that performs the document swap
+    func activate(in textView: NSTextView) {
+        // Port of SCI_SETDOCPOINTER - swap the entire text storage
+        if let layoutManager = textView.layoutManager {
+            // Remove text view from old text storage
+            textView.textStorage?.removeLayoutManager(layoutManager)
+            
+            // Attach to new text storage
+            self.textStorage.addLayoutManager(layoutManager)
+        }
+        
+        // Apply language-specific settings (port of defineDocType)
+        if let language = self.language {
+            applySyntaxHighlighting(to: textView, language: language)
+        }
+        
+        // Restore saved state
+        restoreState(to: textView)
+    }
+    
+    private func applySyntaxHighlighting(to textView: NSTextView, language: LanguageDefinition) {
+        // This will be handled by the syntax highlighter
+        // For now, just ensure the text storage has the correct attributes
+        if AppSettings.shared.syntaxHighlighting {
+            // Apply syntax highlighting to our text storage
+            syntaxHighlighter.highlight(textStorage: textStorage, language: language)
+        }
     }
 }
 

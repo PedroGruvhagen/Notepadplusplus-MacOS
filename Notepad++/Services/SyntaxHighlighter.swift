@@ -9,6 +9,14 @@ import Foundation
 import SwiftUI
 import AppKit
 
+// Extension to help with color conversion
+extension SyntaxStyle {
+    var nsColor: NSColor {
+        // Convert hex color string to NSColor
+        return NSColor(hex: color) ?? NSColor.labelColor
+    }
+}
+
 class SyntaxHighlighter: ObservableObject {
     private let languageManager = OldLanguageManager.shared
     private var cachedRegexes: [String: NSRegularExpression] = [:]
@@ -146,6 +154,101 @@ class SyntaxHighlighter: ObservableObject {
             }
         } catch {
             // Silently fail for invalid patterns
+        }
+    }
+    
+    // MARK: - NSTextStorage Highlighting (for Document-owned text storage)
+    
+    /// Highlight NSTextStorage directly (for document-owned text storage)
+    /// This is used when each Document owns its own NSTextStorage
+    func highlight(textStorage: NSTextStorage, language: LanguageDefinition) {
+        guard AppSettings.shared.syntaxHighlighting else { return }
+        
+        let text = textStorage.string
+        
+        // Clear existing attributes
+        textStorage.beginEditing()
+        let fullRange = NSRange(location: 0, length: textStorage.length)
+        textStorage.removeAttribute(.foregroundColor, range: fullRange)
+        textStorage.removeAttribute(.font, range: fullRange)
+        
+        // Apply theme colors
+        let theme = ThemeManager.shared.currentTheme
+        textStorage.addAttribute(.foregroundColor, value: theme.textColor, range: fullRange)
+        
+        // Port of language-specific lexer selection (like defineDocType switch statement)
+        switch language.name.lowercased() {
+        case "python":
+            // Get keywords for LIST_0 and LIST_1
+            var keywords0: [String] = []
+            var keywords1: [String] = []
+            
+            for keywordSet in language.keywords {
+                if keywordSet.name == "Instructions" {
+                    keywords0 = keywordSet.keywords
+                } else if keywordSet.name == "Types" || keywordSet.name == "Instructions 2" {
+                    keywords1 = keywordSet.keywords
+                }
+            }
+            
+            // Direct port of setPythonLexer()
+            ScintillaLexerPort.applyPythonHighlighting(
+                to: textStorage,
+                text: text,
+                keywords0: keywords0,
+                keywords1: keywords1
+            )
+            
+        case "javascript", "js":
+            var keywords0: [String] = []
+            for keywordSet in language.keywords {
+                if keywordSet.name == "Instructions" {
+                    keywords0 = keywordSet.keywords
+                    break
+                }
+            }
+            ScintillaLexerPort.applyJavaScriptHighlighting(
+                to: textStorage,
+                text: text,
+                keywords: keywords0
+            )
+            
+        case "c", "cpp", "c++":
+            var keywords0: [String] = []
+            for keywordSet in language.keywords {
+                if keywordSet.name == "Instructions" {
+                    keywords0 = keywordSet.keywords
+                    break
+                }
+            }
+            ScintillaLexerPort.applyCppHighlighting(
+                to: textStorage,
+                text: text,
+                keywords: keywords0
+            )
+            
+        default:
+            // Fallback to basic highlighting for other languages
+            applyBasicHighlighting(to: textStorage, language: language)
+        }
+        
+        textStorage.endEditing()
+    }
+    
+    private func applyBasicHighlighting(to textStorage: NSTextStorage, language: LanguageDefinition) {
+        let text = textStorage.string
+        
+        // Apply basic keyword highlighting
+        for keywordSet in language.keywords {
+            let color = keywordSet.style.nsColor
+            for keyword in keywordSet.keywords {
+                if let regex = try? NSRegularExpression(pattern: "\\b\(NSRegularExpression.escapedPattern(for: keyword))\\b", options: []) {
+                    let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.count))
+                    for match in matches {
+                        textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
+                    }
+                }
+            }
         }
     }
 }
