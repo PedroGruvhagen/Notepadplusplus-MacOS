@@ -1,6 +1,10 @@
 # Notepad++ for macOS - Implementation Status
 
 ## 📍 CRITICAL REFERENCE INFORMATION
+I think the biggest problem that we are having is that even though I'm being extremely explicit that what we are doing is a "port" from the arm windows application that you downloaded into a Mac, you 
+  keep trying to fix things yourself with your own knowledge and your own opinions of how do you think you should work and you keep missing the important part that what you need to do is to directly port
+  exactly how it works in the original application and just make it compatible with the application. I just need you to translate for whatever programming language. The original application is into the
+  Mac programming language but I don't want you to try to figure out how to fix things because in the original application, all things are fixed it has to be a literal port. No looks like application.
 
 ### Notepad++ Source Code Location
 **Downloaded to:** `/Users/pedrogruvhagen/Work/Notebook++/notepad-plus-plus-reference/`

@@ -42,9 +42,9 @@ class AppSettings: ObservableObject {
     // MARK: - Tab Settings
     @AppStorage("tabSize") var tabSize: Int = 4
     @AppStorage("replaceTabsBySpaces") var replaceTabsBySpaces: Bool = false
-    @AppStorage("maintainIndent") var maintainIndent: Bool = true
-    @AppStorage("autoIndent") var autoIndent: Bool = true
-    @AppStorage("smartIndent") var smartIndent: Bool = false
+    @AppStorage("maintainIndent") var maintainIndent: Bool = false  // DISABLED - causes problems
+    @AppStorage("autoIndent") var autoIndent: Bool = false  // DISABLED - causes problems
+    @AppStorage("smartIndent") var smartIndent: Bool = false  // DISABLED - causes problems
     
     // MARK: - Appearance Settings
     @AppStorage("theme") var theme: String = "Default"
@@ -69,9 +69,9 @@ class AppSettings: ObservableObject {
     @AppStorage("snapshotInterval") var snapshotInterval: Int = 7 // seconds
     
     // MARK: - Auto-Completion Settings
-    @AppStorage("enableAutoCompletion") var enableAutoCompletion: Bool = true
-    @AppStorage("autoCompletionMinChars") var autoCompletionMinChars: Int = 1
-    @AppStorage("showFunctionParameters") var showFunctionParameters: Bool = true
+    @AppStorage("enableAutoCompletion") var enableAutoCompletion: Bool = false  // DISABLED - it's interfering with normal typing
+    @AppStorage("autoCompletionMinChars") var autoCompletionMinChars: Int = 3
+    @AppStorage("showFunctionParameters") var showFunctionParameters: Bool = false
     @AppStorage("autoCompletionIgnoreNumbers") var autoCompletionIgnoreNumbers: Bool = true
     @AppStorage("autoInsertParentheses") var autoInsertParentheses: Bool = false
     @AppStorage("autoInsertBrackets") var autoInsertBrackets: Bool = false
@@ -138,8 +138,8 @@ class AppSettings: ObservableObject {
         // Tabs
         tabSize = 4
         replaceTabsBySpaces = false
-        maintainIndent = true
-        autoIndent = true
+        maintainIndent = false  // DISABLED
+        autoIndent = false  // DISABLED
         
         // Appearance
         theme = "Default"
@@ -157,9 +157,9 @@ class AppSettings: ObservableObject {
         autoSaveInterval = 1
         
         // Auto-completion
-        enableAutoCompletion = true
-        autoCompletionMinChars = 1
-        showFunctionParameters = true
+        enableAutoCompletion = false  // DISABLED by default
+        autoCompletionMinChars = 3
+        showFunctionParameters = false
         
         // Search
         searchMatchCase = false
