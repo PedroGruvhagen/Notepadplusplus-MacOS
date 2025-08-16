@@ -1,163 +1,235 @@
 # Contributing to Notepad++ for macOS
 
-First off, thank you for considering contributing to this project! This is a DIRECT PORT of Notepad++ Windows ARM version to macOS, not a reimplementation.
+Hey there! 👋 Thanks for considering contributing to this project! I really appreciate any help I can get - this is a big undertaking and I'm learning as I go.
 
-## 🎯 Project Goals
+## 🎯 What This Project Is About
 
-This is a direct port - we aim for 100% feature parity with Notepad++ Windows ARM version while maintaining:
-- Native macOS performance
-- Apple Silicon optimization
-- Respect for the original Notepad++ project
+I'm trying to port Notepad++ from Windows to macOS because I miss it so much after switching to Mac. This is a **literal translation** project - I'm not trying to reimagine Notepad++ or make it "better", I just want the exact same experience on macOS.
 
-## 📋 Before You Contribute
+## 🤝 How You Can Help
 
-1. **Check existing issues** - Someone might already be working on it
-2. **Discuss major changes** - Open an issue first to discuss your idea
-3. **Respect Notepad++ design** - We aim to match the original UX where possible
+### I Really Need Help With:
 
-## 🚀 How to Contribute
+1. **Translation Work** - Converting C++ code from Notepad++ to Swift
+2. **Testing** - Finding bugs and missing features
+3. **macOS Expertise** - Making it feel native on Mac
+4. **Performance** - Optimizing for large files
+5. **Missing Features** - There are SO many features still to port!
 
-### Reporting Bugs
+### Types of Contributions Welcome:
 
-Before creating bug reports, please check existing issues. When creating a bug report, include:
+- 🐛 **Bug reports** - Tell me what's broken
+- 🔧 **Bug fixes** - Even better, fix what's broken!
+- ✨ **Feature ports** - Help translate features from the original
+- 📝 **Documentation** - Help others understand the code
+- 🎨 **UI/UX improvements** - Make it look and feel right on macOS
+- 🧪 **Testing** - Try edge cases and report issues
+- 💡 **Code reviews** - Tell me what I'm doing wrong (seriously!)
 
-- macOS version
-- Mac type (Intel or Apple Silicon)
-- Steps to reproduce
-- Expected behavior
-- Actual behavior
-- Screenshots if applicable
+## 🚀 Getting Started
 
-### Suggesting Features
+### Prerequisites
 
-We primarily focus on features that exist in Notepad++ Windows. When suggesting features:
+- macOS 14.0 (Sonoma) or later
+- Xcode 16.0+
+- An Apple Silicon Mac (M1/M2/M3/M4)
+- Some patience 😅
 
-1. Check if it exists in Notepad++ Windows
-2. Explain the use case
-3. Provide examples from Notepad++ if possible
-
-### Pull Requests
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Make your changes
-4. Test on both Intel and Apple Silicon if possible
-5. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-6. Push to the branch (`git push origin feature/AmazingFeature`)
-7. Open a Pull Request
-
-## 🏗️ Development Setup
+### Setting Up
 
 ```bash
-# Prerequisites
-# - Xcode 16.0+
-# - macOS 14.0+
-# - Swift 5.9+
-
-# Clone your fork
-git clone https://github.com/yourusername/Notepad--.git
-cd Notepad--
+# Clone the repo
+git clone https://github.com/PedroGruvhagen/Notepad--.git
+cd Notepad++
 
 # Open in Xcode
 open Notepad++.xcodeproj
 
-# Build and run
-# Press ⌘R in Xcode
+# Build and run (⌘R)
 ```
 
-## 📝 Coding Standards
+### Important Reference Materials
 
-### Swift Style Guide
+We have the complete Notepad++ source code for reference:
+- **Notepad++ source**: `../notepad-plus-plus-reference/`
+- **Scintilla source**: `../scintilla-reference/`
 
-- Follow [Swift API Design Guidelines](https://swift.org/documentation/api-design-guidelines/)
-- Use SwiftUI where possible
-- Prefer `@StateObject` and `@ObservedObject` for view models
-- Use meaningful variable names
-- Add comments for complex logic
+**PLEASE** check these sources before implementing anything! We're doing a literal port, not a reimplementation.
 
-### File Organization
+## 📋 Development Guidelines
 
+### The Golden Rule: It's a PORT, Not a Rewrite!
+
+This is super important - we're **translating** Notepad++ from C++ to Swift, not creating something new. That means:
+
+1. **Check the original source first** - Always look at how Notepad++ does it
+2. **Preserve the logic** - Keep the same algorithms and approaches
+3. **Match the behavior** - It should work exactly like the Windows version
+4. **Don't optimize prematurely** - First make it work, then make it fast
+
+### Where to Find Things
+
+#### Notepad++ Source Structure:
+```
+notepad-plus-plus-reference/
+├── PowerEditor/src/
+│   ├── Notepad_plus.cpp         # Main application logic
+│   ├── Parameters.cpp           # Settings and configuration
+│   ├── ScintillaComponent/      # Editor integration
+│   └── WinControls/             # UI components
+├── PowerEditor/installer/
+│   ├── themes/                  # Color themes
+│   ├── APIs/                    # Auto-completion data
+│   └── functionList/            # Language parsing rules
+└── PowerEditor/src/
+    ├── langs.model.xml          # Language definitions
+    └── stylers.model.xml        # Syntax styling rules
+```
+
+#### Our macOS Project Structure:
 ```
 Notepad++/
-├── Models/          # Data models
-├── Views/           # SwiftUI views
-├── ViewModels/      # View logic and state
-├── Services/        # Business logic
-├── Extensions/      # Swift extensions
-└── Resources/       # Assets, themes, languages
+├── Notepad++/
+│   ├── Models/                  # Data models (Document, Tab, etc.)
+│   ├── Views/                   # SwiftUI views
+│   ├── ViewModels/              # Business logic
+│   ├── Services/                # Core services (highlighting, etc.)
+│   ├── Extensions/              # NSTextView extensions
+│   └── ScintillaPort/           # Direct Scintilla translations
 ```
 
-### Commit Messages
+### How to Port a Feature
 
-- Use present tense ("Add feature" not "Added feature")
-- Use imperative mood ("Move cursor to..." not "Moves cursor to...")
-- Limit first line to 72 characters
-- Reference issues and pull requests
+1. **Find it in the original** - Locate the feature in the C++ code
+2. **Read the entire implementation** - Understand all the logic
+3. **Check Scintilla if needed** - Many features use Scintilla APIs
+4. **Translate to Swift** - Convert line by line, preserving logic
+5. **Test thoroughly** - Make sure it works exactly the same
+6. **Document what you did** - Help others understand the port
 
-Examples:
+### Example: Porting Bracket Matching
+
+```cpp
+// Original from Notepad_plus.cpp
+bool Notepad_plus::braceMatch()
+{
+    int braceAtCaret = -1;
+    int braceOpposite = -1;
+    findMatchingBracePos(braceAtCaret, braceOpposite);
+    
+    if (braceOpposite != -1)
+    {
+        _pEditView->execute(SCI_BRACEHIGHLIGHT, braceAtCaret, braceOpposite);
+    }
+}
 ```
-Add syntax highlighting for Swift
-Fix memory leak in document manager
-Update README with build instructions
+
+```swift
+// Our Swift translation
+extension NSTextView {
+    func braceMatch() -> Bool {
+        var braceAtCaret = -1
+        var braceOpposite = -1
+        findMatchingBracePos(&braceAtCaret, &braceOpposite)
+        
+        if braceOpposite != -1 {
+            execute(SCI_BRACEHIGHLIGHT, braceAtCaret, braceOpposite)
+            return true
+        }
+        return false
+    }
+}
 ```
 
-## 🎨 UI/UX Guidelines
+## 🐛 Reporting Issues
 
-- **Match Notepad++ where possible** - Users expect familiar functionality
-- **Follow macOS conventions** - Use native controls and behaviors
-- **Support Dark Mode** - Ensure all UI works in both light and dark modes
-- **Keyboard shortcuts** - Implement standard Mac shortcuts (⌘ instead of Ctrl)
+Found a bug? Please let me know! When reporting issues:
 
-## 🧪 Testing
+1. **Check if it's already reported** - Look through existing issues
+2. **Provide details**:
+   - What were you doing?
+   - What did you expect to happen?
+   - What actually happened?
+   - Can you reproduce it?
+3. **Include system info**:
+   - macOS version
+   - Mac model (M1, M2, etc.)
+   - File type you were editing
 
-- Test your changes on both Intel and Apple Silicon Macs if possible
-- Test with large files (>10MB)
-- Test with various file encodings
-- Verify no memory leaks using Instruments
+## 💻 Making a Pull Request
 
-## 📚 Priority Features
+1. **Fork the repo** and create your branch from `main`
+2. **Name your branch** something descriptive like `fix-bracket-matching` or `port-macro-recording`
+3. **Follow the porting guidelines** - Check the original source!
+4. **Test your changes** - Make sure nothing breaks
+5. **Update IMPLEMENTATION_STATUS.md** - Mark what you've implemented
+6. **Create the PR** with a clear description
 
-High priority (please help with these!):
+### PR Description Template
 
-1. **Syntax Highlighting** - Core feature needed
-2. **Find & Replace** - Essential for any text editor
-3. **Multi-cursor editing** - Popular Notepad++ feature
-4. **Code folding** - Important for code editing
-5. **Theme support** - Users love customization
+```markdown
+## What This Does
+[Brief description of the feature/fix]
 
-## 🤝 Code of Conduct
+## Original Notepad++ Reference
+- Source file: [e.g., Notepad_plus.cpp line 2993]
+- Related Scintilla APIs: [if any]
 
-### Our Standards
+## How I Ported It
+[Explain your translation approach]
 
-- Be respectful and inclusive
-- Welcome newcomers and help them get started
-- Focus on what's best for the community
-- Show empathy towards others
+## Testing Done
+- [ ] Tested with small files
+- [ ] Tested with large files
+- [ ] Tested edge cases
+- [ ] Compared behavior with Windows version
 
-### Attribution
+## Screenshots (if UI changes)
+[Add screenshots here]
+```
 
-This is a DIRECT PORT of Notepad++. Always:
-- Give credit to the original project
-- Respect their trademark and branding
-- Follow the exact feature implementation from the original
-- Check the original source code when implementing features
+## 🎯 Current Priorities
 
-## 📄 License
+Check `IMPLEMENTATION_STATUS.md` for what needs work, but here are the big ones:
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+1. **Session Management** - Save/restore open tabs ✅ DONE!
+2. **Theme System** - Port the 20+ Notepad++ themes
+3. **More Languages** - We have 94 to port from the XML! ✅ DONE!
+4. **Plugin Architecture** - This is a big one
+5. **Performance** - Large file handling needs work
 
-## 🙋 Questions?
+## 🚦 Code Style
 
-Feel free to:
-- Open an issue for questions
-- Start a discussion
-- Contact maintainers
+- Use Swift conventions (camelCase, etc.)
+- Match the existing code style in the project
+- Keep it simple and readable - remember, I'm learning too!
+- Comment tricky parts, especially when translating complex C++ logic
+- No unnecessary dependencies - we're keeping it lean
 
-## 🌟 Recognition
+## 🤔 Not Sure About Something?
 
-Contributors will be recognized in:
-- README.md contributors section
-- Release notes
-- Special thanks in About dialog
+That's totally fine! You can:
 
-Thank you for helping bring Notepad++ to macOS! 🎉
+1. **Open an issue** to discuss your idea
+2. **Start a discussion** in the Discussions tab
+3. **Make a draft PR** and ask for feedback
+4. **Ask questions** - I don't bite, and I probably don't know either 😄
+
+## 📜 Legal Stuff
+
+- This project is MIT licensed
+- The original Notepad++ is GPL v3
+- By contributing, you agree your code will be MIT licensed
+- We respect the original Notepad++ project and will comply with any requests they make
+
+## 🙏 Thank You!
+
+Seriously, thank you for even reading this! Whether you contribute code, report bugs, or just give the project a star, I really appreciate it. I'm just one person trying to bring their favorite editor to Mac, and any help makes a huge difference.
+
+Remember: **We're not trying to reinvent the wheel, we're just trying to make the wheel roll on macOS!**
+
+Happy coding! 🚀
+
+---
+
+*P.S. - If you're from the Notepad++ team and have any concerns about this project, please reach out! I'll do whatever you need.*
