@@ -8,6 +8,54 @@
 
 import Foundation
 
+// Match Notepad++ EolType enum exactly
+enum EOLType: Int, CaseIterable {
+    case windows = 0  // CRLF (\r\n)
+    case macos = 1    // CR (\r) - Old Mac
+    case unix = 2     // LF (\n)
+    
+    var displayName: String {
+        switch self {
+        case .windows:
+            return "Windows (CRLF)"
+        case .macos:
+            return "Mac (CR)"
+        case .unix:
+            return "Unix (LF)"
+        }
+    }
+    
+    var shortName: String {
+        switch self {
+        case .windows:
+            return "CRLF"
+        case .macos:
+            return "CR"
+        case .unix:
+            return "LF"
+        }
+    }
+    
+    var characters: String {
+        switch self {
+        case .windows:
+            return "\r\n"
+        case .macos:
+            return "\r"
+        case .unix:
+            return "\n"
+        }
+    }
+    
+    static var osDefault: EOLType {
+        #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+        return .unix
+        #else
+        return .windows
+        #endif
+    }
+}
+
 // Match Notepad++ UniMode enum exactly
 enum FileEncoding: Int, CaseIterable {
     case ansi = 0           // uni8Bit - ANSI/Windows-1252
@@ -97,8 +145,8 @@ class EncodingManager {
         return detectEncoding(from: data)
     }
     
-    // Read file with detected encoding
-    func readFile(at url: URL, openAnsiAsUtf8: Bool = true) throws -> (content: String, encoding: FileEncoding) {
+    // Read file with detected encoding and EOL
+    func readFile(at url: URL, openAnsiAsUtf8: Bool = true) throws -> (content: String, encoding: FileEncoding, eolType: EOLType) {
         let data = try Data(contentsOf: url)
         var detectedEncoding = detectEncoding(from: data)
         
@@ -131,7 +179,94 @@ class EncodingManager {
             content = String(decoding: contentData, as: UTF8.self)
         }
         
-        return (content, detectedEncoding)
+        // Detect EOL type
+        let eolType = detectEOL(from: content)
+        
+        return (content, detectedEncoding, eolType)
+    }
+    
+    // Detect EOL type from content
+    func detectEOL(from content: String) -> EOLType {
+        // Count occurrences of each EOL type
+        var crlfCount = 0
+        var lfCount = 0
+        var crCount = 0
+        
+        let nsString = content as NSString
+        var searchRange = NSRange(location: 0, length: nsString.length)
+        
+        // Count CRLF first (must be done before counting individual CR and LF)
+        while searchRange.location < nsString.length {
+            let range = nsString.range(of: "\r\n", options: [], range: searchRange)
+            if range.location != NSNotFound {
+                crlfCount += 1
+                searchRange.location = range.location + range.length
+                searchRange.length = nsString.length - searchRange.location
+            } else {
+                break
+            }
+        }
+        
+        // Count standalone LF (not part of CRLF)
+        searchRange = NSRange(location: 0, length: nsString.length)
+        while searchRange.location < nsString.length {
+            let range = nsString.range(of: "\n", options: [], range: searchRange)
+            if range.location != NSNotFound {
+                // Check if it's not part of CRLF
+                if range.location == 0 || nsString.character(at: range.location - 1) != 13 { // 13 = \r
+                    lfCount += 1
+                }
+                searchRange.location = range.location + 1
+                searchRange.length = nsString.length - searchRange.location
+            } else {
+                break
+            }
+        }
+        
+        // Count standalone CR (not part of CRLF)
+        searchRange = NSRange(location: 0, length: nsString.length)
+        while searchRange.location < nsString.length {
+            let range = nsString.range(of: "\r", options: [], range: searchRange)
+            if range.location != NSNotFound {
+                // Check if it's not part of CRLF
+                if range.location + 1 >= nsString.length || nsString.character(at: range.location + 1) != 10 { // 10 = \n
+                    crCount += 1
+                }
+                searchRange.location = range.location + 1
+                searchRange.length = nsString.length - searchRange.location
+            } else {
+                break
+            }
+        }
+        
+        // Determine EOL type based on counts
+        if crlfCount > 0 && crlfCount >= lfCount && crlfCount >= crCount {
+            return .windows
+        } else if lfCount > 0 && lfCount >= crCount {
+            return .unix
+        } else if crCount > 0 {
+            return .macos
+        } else {
+            // No line endings found, use OS default
+            return EOLType.osDefault
+        }
+    }
+    
+    // Convert EOL type in content
+    func convertEOL(in content: String, to eolType: EOLType) -> String {
+        // First normalize all line endings to LF
+        var normalized = content.replacingOccurrences(of: "\r\n", with: "\n")
+        normalized = normalized.replacingOccurrences(of: "\r", with: "\n")
+        
+        // Then convert to target EOL type
+        switch eolType {
+        case .windows:
+            return normalized.replacingOccurrences(of: "\n", with: "\r\n")
+        case .macos:
+            return normalized.replacingOccurrences(of: "\n", with: "\r")
+        case .unix:
+            return normalized
+        }
     }
     
     // Write file with specified encoding

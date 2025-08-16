@@ -131,6 +131,11 @@ struct EditorView: View {
         .onReceive(NotificationCenter.default.publisher(for: .showBookmarks)) { _ in
             showBookmarks = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .convertEOL)) { notification in
+            if let eolType = notification.object as? EOLType {
+                document.convertEOL(to: eolType)
+            }
+        }
         .sheet(isPresented: $showFindInFiles) {
             FindInFilesView()
         }
@@ -217,6 +222,12 @@ struct StatusBarView: View {
             Spacer()
             
             Text("Line \(lineColumn.0), Column \(lineColumn.1)")
+                .font(.system(size: 11))
+            
+            Divider()
+                .frame(height: 12)
+            
+            Text(document.eolType.shortName)
                 .font(.system(size: 11))
             
             Divider()
