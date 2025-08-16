@@ -16,6 +16,7 @@ import ObjectiveC
 private var bracketHighlightPos1Key: UInt8 = 0
 private var bracketHighlightPos2Key: UInt8 = 0
 private var highlightGuideColumnKey: UInt8 = 0
+private var scintillaDocumentKey: UInt8 = 0
 
 // MARK: - Scintilla API Constants (from Scintilla.h)
 enum ScintillaConstants {
@@ -151,77 +152,81 @@ extension NSTextView {
     // MARK: - Brace Matching
     
     // Translation of: SCI_BRACEMATCH
+    // This now uses the EXACT translation of Scintilla's Document::BraceMatch
     func braceMatch(_ position: Int) -> Int {
+        // Get or create the Scintilla document
+        guard let document = getOrCreateScintillaDocument() else {
+            return -1
+        }
+        
+        // Synchronize text and styles with the document
+        synchronizeWithScintillaDocument(document)
+        
+        // Call the exact translated BraceMatch function from Document.cxx
+        return document.braceMatch(position, 0, 0, false)
+    }
+    
+    // Helper to get or create associated Scintilla document
+    private func getOrCreateScintillaDocument() -> ScintillaDocument? {
+        if let doc = objc_getAssociatedObject(self, &scintillaDocumentKey) as? ScintillaDocument {
+            return doc
+        }
+        
+        let doc = ScintillaDocument()
+        objc_setAssociatedObject(self, &scintillaDocumentKey, doc, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        return doc
+    }
+    
+    // Helper to synchronize NSTextView with Scintilla document
+    private func synchronizeWithScintillaDocument(_ doc: ScintillaDocument) {
         let text = self.string
-        guard position >= 0 && position < text.count else { return -1 }
+        doc.cb.setText(text)
         
-        let index = text.index(text.startIndex, offsetBy: position)
-        let char = text[index]
+        // Apply syntax styles if available
+        if let textStorage = self.textStorage {
+            applySyntaxStylesToDocument(doc, from: textStorage)
+        }
+    }
+    
+    // Apply NSTextStorage styles to Scintilla document
+    private func applySyntaxStylesToDocument(_ doc: ScintillaDocument, from textStorage: NSTextStorage) {
+        // Map NSTextStorage attributes to Scintilla style IDs
+        let STYLE_DEFAULT: UInt8 = 0
+        let STYLE_COMMENT: UInt8 = 1
+        let STYLE_STRING: UInt8 = 2
+        let STYLE_KEYWORD: UInt8 = 3
         
-        // Check if it's a brace character
-        let openBraces = "([{"
-        let closeBraces = ")]}"
-        let allBraces = "()[]{}";
+        // Iterate through the text and map colors to style IDs
+        let text = textStorage.string
+        let fullRange = NSRange(location: 0, length: text.count)
         
-        guard allBraces.contains(char) else { return -1 }
+        // Set default style for all positions
+        for i in 0..<text.count {
+            doc.cb.setStyleAt(i, STYLE_DEFAULT)
+        }
         
-        if openBraces.contains(char) {
-            // Find closing brace
-            let matchChar: Character
-            switch char {
-            case "(": matchChar = ")"
-            case "[": matchChar = "]"
-            case "{": matchChar = "}"
-            default: return -1
-            }
-            
-            var depth = 1
-            var searchIndex = text.index(after: index)
-            var currentPos = position + 1
-            
-            while searchIndex < text.endIndex {
-                let currentChar = text[searchIndex]
-                if currentChar == char {
-                    depth += 1
-                } else if currentChar == matchChar {
-                    depth -= 1
-                    if depth == 0 {
-                        return currentPos
-                    }
+        // Map color attributes to Scintilla styles
+        textStorage.enumerateAttribute(.foregroundColor, in: fullRange, options: []) { value, range, _ in
+            if let color = value as? NSColor {
+                var styleId = STYLE_DEFAULT
+                
+                // Map colors to style IDs (based on typical syntax highlighting colors)
+                if color == NSColor.systemGreen {
+                    styleId = STYLE_COMMENT
+                } else if color == NSColor.systemRed {
+                    styleId = STYLE_STRING
+                } else if color == NSColor.systemBlue {
+                    styleId = STYLE_KEYWORD
                 }
-                searchIndex = text.index(after: searchIndex)
-                currentPos += 1
-            }
-        } else if closeBraces.contains(char) {
-            // Find opening brace
-            let matchChar: Character
-            switch char {
-            case ")": matchChar = "("
-            case "]": matchChar = "["
-            case "}": matchChar = "{"
-            default: return -1
-            }
-            
-            var depth = 1
-            var searchIndex = index
-            var currentPos = position
-            
-            while searchIndex > text.startIndex {
-                searchIndex = text.index(before: searchIndex)
-                currentPos -= 1
-                let currentChar = text[searchIndex]
-                if currentChar == char {
-                    depth += 1
-                } else if currentChar == matchChar {
-                    depth -= 1
-                    if depth == 0 {
-                        return currentPos
+                
+                // Apply style to range
+                for i in range.location..<(range.location + range.length) {
+                    if i < text.count {
+                        doc.cb.setStyleAt(i, styleId)
                     }
                 }
             }
         }
-        
-        return -1 // No match found
     }
     
     // Translation of: SCI_BRACEHIGHLIGHT
@@ -337,4 +342,176 @@ extension Notification.Name {
 // Custom attribute for bracket highlighting
 extension NSAttributedString.Key {
     static let bracketHighlight = NSAttributedString.Key("NotepadPlusBracketHighlight")
+}
+
+// MARK: - Text Modification APIs (Translation from Editor.cxx)
+
+extension NSTextView {
+    
+    // Translation of: SCI_REPLACESEL
+    // Replaces the selected text with the specified text
+    func replaceSel(_ text: String) {
+        // Get current selection
+        let range = self.selectedRange()
+        
+        // Replace the selection with new text
+        if self.shouldChangeText(in: range, replacementString: text) {
+            self.textStorage?.replaceCharacters(in: range, with: text)
+            self.didChangeText()
+            
+            // Move cursor to end of inserted text
+            let newPosition = range.location + text.count
+            self.setSelectedRange(NSRange(location: newPosition, length: 0))
+        }
+    }
+    
+    // Translation of: SCI_INSERTTEXT
+    // Insert text at a specific position
+    func insertText(at position: Int, text: String) {
+        guard position >= 0 && position <= self.string.count else { return }
+        
+        let range = NSRange(location: position, length: 0)
+        
+        if self.shouldChangeText(in: range, replacementString: text) {
+            self.textStorage?.replaceCharacters(in: range, with: text)
+            self.didChangeText()
+        }
+    }
+    
+    // Translation of: SCI_DELETERANGE
+    // Delete a range of text
+    func deleteRange(start: Int, length: Int) {
+        guard start >= 0 && start + length <= self.string.count else { return }
+        
+        let range = NSRange(location: start, length: length)
+        
+        if self.shouldChangeText(in: range, replacementString: "") {
+            self.textStorage?.replaceCharacters(in: range, with: "")
+            self.didChangeText()
+        }
+    }
+    
+    // Translation of: SCI_CLEARALL
+    // Clear all text in the document
+    func clearAll() {
+        let fullRange = NSRange(location: 0, length: self.string.count)
+        
+        if self.shouldChangeText(in: fullRange, replacementString: "") {
+            self.textStorage?.replaceCharacters(in: fullRange, with: "")
+            self.didChangeText()
+        }
+    }
+    
+    // Translation of: SCI_ADDTEXT
+    // Add text to the current position
+    func addText(_ text: String) {
+        let position = self.selectedRange().location
+        insertText(at: position, text: text)
+    }
+    
+    // Translation of: SCI_UNDO
+    func undo() {
+        self.undoManager?.undo()
+    }
+    
+    // Translation of: SCI_REDO
+    func redo() {
+        self.undoManager?.redo()
+    }
+    
+    // Translation of: SCI_CANUNDO
+    func canUndo() -> Bool {
+        return self.undoManager?.canUndo ?? false
+    }
+    
+    // Translation of: SCI_CANREDO
+    func canRedo() -> Bool {
+        return self.undoManager?.canRedo ?? false
+    }
+    
+    // Translation of: SCI_BEGINUNDOACTION
+    func beginUndoAction() {
+        self.undoManager?.beginUndoGrouping()
+    }
+    
+    // Translation of: SCI_ENDUNDOACTION
+    func endUndoAction() {
+        self.undoManager?.endUndoGrouping()
+    }
+    
+    // Translation of: SCI_SETSEL
+    func setSel(_ start: Int, _ end: Int) {
+        let safeStart = max(0, min(start, self.string.count))
+        let safeEnd = max(safeStart, min(end, self.string.count))
+        let range = NSRange(location: safeStart, length: safeEnd - safeStart)
+        self.setSelectedRange(range)
+    }
+    
+    // Translation of: SCI_GETSEL
+    func getSel() -> (start: Int, end: Int) {
+        let range = self.selectedRange()
+        return (range.location, range.location + range.length)
+    }
+    
+    // Translation of: SCI_GETSELTEXT
+    func getSelText() -> String {
+        let range = self.selectedRange()
+        guard range.length > 0 else { return "" }
+        
+        let text = self.string as NSString
+        return text.substring(with: range)
+    }
+    
+    // Translation of: SCI_SELECTALL
+    func selectAll() {
+        let range = NSRange(location: 0, length: self.string.count)
+        self.setSelectedRange(range)
+    }
+    
+    // Translation of: SCI_GOTOPOS
+    func gotoPos(_ position: Int) {
+        let safePos = max(0, min(position, self.string.count))
+        self.setSelectedRange(NSRange(location: safePos, length: 0))
+    }
+    
+    // Translation of: SCI_GOTOLINE
+    func gotoLine(_ line: Int) {
+        let text = self.string
+        var currentLine = 0
+        var position = 0
+        
+        for (index, char) in text.enumerated() {
+            if currentLine == line {
+                position = index
+                break
+            }
+            if char == "\n" {
+                currentLine += 1
+            }
+        }
+        
+        gotoPos(position)
+    }
+    
+    // Translation of: SCI_SETCURRENTPOS
+    func setCurrentPos(_ position: Int) {
+        gotoPos(position)
+    }
+    
+    // Translation of: SCI_GETANCHOR
+    func getAnchor() -> Int {
+        // In NSTextView, anchor is the start of selection
+        return self.selectedRange().location
+    }
+    
+    // Translation of: SCI_SETANCHOR
+    func setAnchor(_ position: Int) {
+        // Set selection from anchor to current position
+        let currentPos = getCurrentPos()
+        if position < currentPos {
+            setSel(position, currentPos)
+        } else {
+            setSel(currentPos, position)
+        }
+    }
 }
