@@ -130,14 +130,19 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             PerformanceManager.shared.optimizeTextView(textView, forLargeFile: document.isLargeFile)
         }
         
-        // Configure auto-completion
-        if AppSettings.shared.enableAutoCompletion {
-            AutoCompletionEngine.shared.configure(for: textView)
-        }
+        // DISABLED - Auto-completion causes text duplication issues
+        // DO NOT configure auto-completion
         
         // Apply initial syntax highlighting if enabled
-        if syntaxHighlightingEnabled, let language = language {
-            context.coordinator.applySyntaxHighlighting(textView: textView, language: language)
+        if syntaxHighlightingEnabled {
+            if let language = language {
+                print("DEBUG: Initial highlighting - Language detected: \(language.name)")
+                context.coordinator.applySyntaxHighlighting(textView: textView, language: language)
+            } else {
+                print("DEBUG: Initial highlighting - NO LANGUAGE DETECTED!")
+            }
+        } else {
+            print("DEBUG: Initial highlighting - Syntax highlighting disabled")
         }
         
         context.coordinator.updateBracketHighlighting()
@@ -199,17 +204,8 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
             smartIndent: smartIndent
         )
         
-        // Only update text if it's different AND we're not typing AND the new text is actually newer
-        if !context.coordinator.isUserTyping && textView.string != text {
-            // CRITICAL: Don't replace text with older content
-            if textView.string.count > text.count && text.count == 29 {
-                // Force the binding to update with the current text
-                DispatchQueue.main.async {
-                    self.text = textView.string
-                }
-                return
-            }
-            
+        // Only update text if it's different from what's in the editor
+        if textView.string != text && !context.coordinator.isUpdating {
             context.coordinator.isUpdating = true
             
             // Save selection and scroll position
@@ -243,7 +239,6 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         weak var textView: NSTextView?
         var currentMatchingBracket: NSRange?
         var isUpdating = false
-        var isUserTyping = false
         var highlightCurrentLine = true
         var currentLineColor = "#F0F0F0"
         var showIndentGuides = true
@@ -273,28 +268,35 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
                 return 
             }
             
-            // Mark that we're typing and shouldn't accept external updates
-            isUserTyping = true
-            
-            // Update through the binding
+            // Get the new text
             let newText = textView.string
             
-            // IMPORTANT: Update the binding synchronously
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.parent.text = newText
+            // Port of Notepad++ SCN_CHARADDED handling from NppNotification.cpp
+            // Check what character was just typed
+            let currentPos = textView.selectedRange().location
+            if currentPos > 0 && currentPos <= newText.count {
+                let index = newText.index(newText.startIndex, offsetBy: currentPos - 1)
+                let lastChar = newText[index]
                 
-                // Call the optional onTextChange if provided
-                self.parent.onTextChange?(newText)
+                // Port of: if (nppGui._maintainIndent != autoIndent_none)
+                //             maintainIndentation(static_cast<wchar_t>(notification->ch));
+                if AppSettings.shared.maintainIndent {
+                    textView.maintainIndentation(character: lastChar)
+                }
+                
+                // Port of auto-completion update (if enabled)
+                // if (currentBuf->allowAutoCompletion()) { autoC->update(notification->ch); }
+                // We're disabling this for now as requested
             }
+            
+            // Update the binding
+            self.parent.text = newText
+            
+            // Call the optional onTextChange if provided
+            self.parent.onTextChange?(newText)
             
             updateBracketHighlighting()
             updateCurrentLineHighlight()
-            
-            // Keep the typing flag active longer to prevent race conditions
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.isUserTyping = false
-            }
         }
         
         func textViewDidChangeSelection(_ notification: Notification) {
@@ -381,49 +383,72 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         }
         
         func applySyntaxHighlighting(textView: NSTextView, language: LanguageDefinition) {
-            guard let textStorage = textView.textStorage,
-                  AppSettings.shared.syntaxHighlighting else { return }
+            guard let textStorage = textView.textStorage else { return }
+            guard AppSettings.shared.syntaxHighlighting else { return }
             
             let text = textView.string
-            let theme = ThemeManager.shared.currentTheme
             
-            // Reset to theme default text color
-            textStorage.addAttribute(.foregroundColor,
-                                    value: theme.textColor,
-                                    range: NSRange(location: 0, length: text.count))
+            // DIRECT PORT - Use exact Scintilla lexer behavior from Notepad++
+            // This matches ScintillaEditView::defineDocType() behavior
             
-            // Apply keyword highlighting with theme colors
+            // Get keywords for LIST_0 and LIST_1 (matching setPythonLexer LIST_0 | LIST_1)
+            var keywords0: [String] = []
+            var keywords1: [String] = []
+            
             for keywordSet in language.keywords {
-                let color = theme.colorForTokenType(keywordSet.name)
-                
-                for keyword in keywordSet.keywords {
-                    let pattern = "\\b\(NSRegularExpression.escapedPattern(for: keyword))\\b"
-                    
-                    if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                        let matches = regex.matches(in: text,
-                                                   range: NSRange(location: 0, length: text.count))
-                        
-                        for match in matches {
-                            textStorage.addAttribute(.foregroundColor,
-                                                    value: color,
-                                                    range: match.range)
-                        }
-                    }
+                if keywordSet.name == "Instructions" {
+                    keywords0 = keywordSet.keywords
+                } else if keywordSet.name == "Types" || keywordSet.name == "Instructions 2" {
+                    keywords1 = keywordSet.keywords
                 }
             }
             
-            // Highlight strings
-            highlightStrings(in: textStorage, text: text)
-            
-            // Highlight comments
-            if let commentLine = language.commentLine {
-                highlightLineComments(in: textStorage, text: text, marker: commentLine)
+            // Port of language-specific lexer selection (like defineDocType switch statement)
+            switch language.name.lowercased() {
+            case "python":
+                // Direct port of setPythonLexer()
+                ScintillaLexerPort.applyPythonHighlighting(
+                    to: textStorage,
+                    text: text,
+                    keywords0: keywords0,
+                    keywords1: keywords1
+                )
+                
+            case "javascript", "js":
+                // TODO: Port setJsLexer()
+                ScintillaLexerPort.applyJavaScriptHighlighting(
+                    to: textStorage,
+                    text: text,
+                    keywords: keywords0
+                )
+                
+            case "c", "cpp", "c++":
+                // TODO: Port setCppLexer()
+                ScintillaLexerPort.applyCppHighlighting(
+                    to: textStorage,
+                    text: text,
+                    keywords: keywords0
+                )
+                
+            default:
+                // For now, use basic highlighting for other languages
+                // This will be replaced with direct ports of each lexer
+                applyBasicHighlighting(textStorage: textStorage, text: text, language: language)
             }
-            
-            if let commentStart = language.commentStart,
-               let commentEnd = language.commentEnd {
-                highlightBlockComments(in: textStorage, text: text,
-                                     start: commentStart, end: commentEnd)
+        }
+        
+        // Temporary fallback until all lexers are ported
+        private func applyBasicHighlighting(textStorage: NSTextStorage, text: String, language: LanguageDefinition) {
+            // Basic keyword matching as fallback
+            for keywordSet in language.keywords {
+                for keyword in keywordSet.keywords {
+                    if let regex = try? NSRegularExpression(pattern: "\\b\(NSRegularExpression.escapedPattern(for: keyword))\\b", options: []) {
+                        let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.count))
+                        for match in matches {
+                            textStorage.addAttribute(.foregroundColor, value: NSColor.systemBlue, range: match.range)
+                        }
+                    }
+                }
             }
         }
         

@@ -47,13 +47,16 @@ class Document: ObservableObject, Identifiable {
             // Use the new LanguageManager to detect language
             if let nppLanguage = LanguageManager.shared.detectLanguage(for: path.lastPathComponent) {
                 self.language = nppLanguage.toLanguageDefinition()
-                } else {
+                print("DEBUG Document init: Language detected for \(path.lastPathComponent): \(nppLanguage.name)")
+            } else {
                 // Try the old language manager as fallback
                 if let oldLanguage = OldLanguageManager.shared.detectLanguage(for: path) {
                     self.language = oldLanguage
-                    } else {
+                    print("DEBUG Document init: Old language manager detected: \(oldLanguage.name)")
+                } else {
                     self.language = nil
-                    }
+                    print("DEBUG Document init: NO LANGUAGE DETECTED for \(path.lastPathComponent)")
+                }
             }
         } else {
             self.fileName = "Untitled"
