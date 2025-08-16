@@ -175,6 +175,22 @@ struct Notepad__App: App {
                 
                 Divider()
                 
+                Menu("EOL Conversion") {
+                    Button("Windows (CRLF)") {
+                        NotificationCenter.default.post(name: .convertEOL, object: EOLType.windows)
+                    }
+                    
+                    Button("Unix (LF)") {
+                        NotificationCenter.default.post(name: .convertEOL, object: EOLType.unix)
+                    }
+                    
+                    Button("Mac (CR)") {
+                        NotificationCenter.default.post(name: .convertEOL, object: EOLType.macos)
+                    }
+                }
+                
+                Divider()
+                
                 Button("Find...") {
                     NotificationCenter.default.post(name: .showFind, object: nil)
                 }
@@ -405,4 +421,5 @@ extension Notification.Name {
     static let markAll = Notification.Name("markAll")
     static let clearMarks = Notification.Name("clearMarks")
     static let jumpToMatchingBracket = Notification.Name("jumpToMatchingBracket")
+    static let convertEOL = Notification.Name("convertEOL")
 }

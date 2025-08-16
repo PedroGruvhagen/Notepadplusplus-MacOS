@@ -60,6 +60,16 @@ None currently active
 - ✅ **Content analysis** - Smart detection for files without BOM
 - ✅ **Fallback handling** - Graceful handling of unknown encodings
 
+### EOL Detection and Conversion (Issue #9)
+- ✅ **EOL type detection** - Detects Windows (CRLF), Unix (LF), Mac (CR)
+- ✅ **Status bar display** - Shows current EOL type
+- ✅ **EOL conversion menu** - Edit → EOL Conversion submenu
+- ✅ **Convert to Windows** - Convert line endings to CRLF
+- ✅ **Convert to Unix** - Convert line endings to LF
+- ✅ **Convert to Mac** - Convert line endings to CR
+- ✅ **Mixed EOL handling** - Properly detects most common EOL type
+- ✅ **Preserve on save** - Maintains original EOL format
+
 ## ✅ RECENTLY COMPLETED (2025-08-15 - Session 4)
 
 ### Advanced Search System

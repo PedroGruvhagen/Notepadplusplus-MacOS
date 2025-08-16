@@ -28,6 +28,7 @@ class Document: ObservableObject, Identifiable {
     @Published var language: LanguageDefinition?
     @Published var foldingState = FoldingState()
     @Published var encoding: FileEncoding = .utf8
+    @Published var eolType: EOLType = .unix
     
     private var lastSavedContent: String
     
@@ -139,8 +140,8 @@ class Document: ObservableObject, Identifiable {
     }
     
     static func open(from url: URL) async throws -> Document {
-        // Read file with encoding detection on background thread
-        let (content, detectedEncoding) = try await Task.detached {
+        // Read file with encoding and EOL detection on background thread
+        let (content, detectedEncoding, detectedEOL) = try await Task.detached {
             // Encoding detection must happen on main thread
             let result = try await MainActor.run {
                 let settings = AppSettings.shared
@@ -153,8 +154,17 @@ class Document: ObservableObject, Identifiable {
         return await MainActor.run {
             let doc = Document(content: content, filePath: url)
             doc.encoding = detectedEncoding
+            doc.eolType = detectedEOL
             return doc
         }
+    }
+    
+    // Convert EOL in current document
+    func convertEOL(to newEOL: EOLType) {
+        let convertedContent = EncodingManager.shared.convertEOL(in: content, to: newEOL)
+        content = convertedContent
+        eolType = newEOL
+        isModified = true
     }
 }
 

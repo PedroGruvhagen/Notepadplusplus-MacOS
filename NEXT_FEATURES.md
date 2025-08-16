@@ -60,13 +60,20 @@ Advanced Search features completed successfully!
 - [x] Keyboard shortcuts for all features
 - [x] Context-aware search results display
 
-### 7. Session Management
+### 7. File Encoding Detection ✅ COMPLETED (2025-08-16)
+- [x] Detect file encoding (UTF-8, UTF-16, ANSI, ASCII)
+- [x] BOM detection and handling
+- [x] Display encoding in status bar
+- [x] Preserve encoding on save
+- [x] "Open ANSI as UTF-8" setting support
+
+### 8. Session Management
 - [ ] Save open tabs
 - [ ] Restore on launch
 - [ ] Multiple sessions
 - [ ] Workspace concept
 
-### 8. Theme System
+### 9. Theme System
 - [ ] Port 20+ Notepad++ themes
 - [ ] Theme switcher
 - [ ] Custom theme editor
