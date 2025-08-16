@@ -198,14 +198,14 @@ class AdvancedSearchManager: ObservableObject {
                         if nsRange.location == 0 { return true }
                         let charBefore = nsText.character(at: nsRange.location - 1)
                         let scalar = Unicode.Scalar(charBefore)!
-                        return !CharacterSet.alphanumerics.contains(scalar)
+                        return !Foundation.CharacterSet.alphanumerics.contains(scalar)
                     }()
                     
                     let afterOK: Bool = {
                         if NSMaxRange(nsRange) >= nsText.length { return true }
                         let charAfter = nsText.character(at: NSMaxRange(nsRange))
                         let scalar = Unicode.Scalar(charAfter)!
-                        return !CharacterSet.alphanumerics.contains(scalar)
+                        return !Foundation.CharacterSet.alphanumerics.contains(scalar)
                     }()
                     
                     if beforeOK && afterOK {

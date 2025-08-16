@@ -57,8 +57,8 @@ class WordList {
     }
 }
 
-// MARK: - CharacterSet helpers (matching Scintilla's CharacterSet.h)
-struct CharacterSet {
+// MARK: - ScintillaCharacterSet helpers (matching Scintilla's CharacterSet.h)
+struct ScintillaCharacterSet {
     private let chars: Set<Character>
     
     init(_ charactersString: String) {
@@ -70,21 +70,21 @@ struct CharacterSet {
     }
     
     // Common character sets from Scintilla
-    static let setAlpha = CharacterSet("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    static let setDigits = CharacterSet("0123456789")
-    static let setAlphaNum = CharacterSet("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-    static let setHexDigits = CharacterSet("0123456789ABCDEFabcdef")
-    static let setOctDigits = CharacterSet("01234567")
-    static let setNoneNumeric = CharacterSet("")
+    static let setAlpha = ScintillaCharacterSet("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    static let setDigits = ScintillaCharacterSet("0123456789")
+    static let setAlphaNum = ScintillaCharacterSet("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    static let setHexDigits = ScintillaCharacterSet("0123456789ABCDEFabcdef")
+    static let setOctDigits = ScintillaCharacterSet("01234567")
+    static let setNoneNumeric = ScintillaCharacterSet("")
 }
 
 // MARK: - Helper functions from CharacterSet.h
 func isWordChar(_ ch: Character) -> Bool {
-    return CharacterSet.setAlphaNum.contains(ch) || ch == "_"
+    return ScintillaCharacterSet.setAlphaNum.contains(ch) || ch == "_"
 }
 
 func isWordStart(_ ch: Character) -> Bool {
-    return CharacterSet.setAlpha.contains(ch) || ch == "_"
+    return ScintillaCharacterSet.setAlpha.contains(ch) || ch == "_"
 }
 
 func isOperator(_ ch: Character) -> Bool {
@@ -101,7 +101,7 @@ func isASpaceOrTab(_ ch: Character) -> Bool {
 }
 
 func isADigit(_ ch: Character) -> Bool {
-    return CharacterSet.setDigits.contains(ch)
+    return ScintillaCharacterSet.setDigits.contains(ch)
 }
 
 func makeLowerCase(_ ch: Character) -> Character {
