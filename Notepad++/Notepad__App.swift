@@ -10,6 +10,8 @@ import SwiftUI
 @main
 struct Notepad__App: App {
     @StateObject private var backupManager = BackupManager.shared
+    @StateObject private var documentManager = DocumentManager.shared
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     init() {
         // Restore session on app launch
@@ -19,6 +21,17 @@ struct Notepad__App: App {
     var body: some Scene {
         WindowGroup("Notepad++") {
             ContentView()
+                .environmentObject(documentManager)
+                .onAppear {
+                    // Connect documentManager to appDelegate when view appears
+                    appDelegate.documentManager = documentManager
+                }
+                .onOpenURL { url in
+                    // Handle files opened from Finder or command line
+                    Task { @MainActor in
+                        await documentManager.openDocument(from: url)
+                    }
+                }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
@@ -381,6 +394,25 @@ struct Notepad__App: App {
                 LanguageMenuView()
             }
         }
+    }
+}
+
+// MARK: - AppDelegate for handling file opening from Finder
+class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var documentManager: DocumentManager?
+    
+    func application(_ application: NSApplication, open urls: [URL]) {
+        // Handle files dropped on dock icon or opened via "Open With"
+        Task { @MainActor in
+            for url in urls {
+                await documentManager?.openDocument(from: url)
+            }
+        }
+    }
+    
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        // Don't create untitled document on launch if we have restored session
+        return documentManager?.tabs.isEmpty ?? true
     }
 }
 
