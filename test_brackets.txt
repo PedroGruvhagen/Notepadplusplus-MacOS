@@ -1,0 +1,17 @@
+// Test file for bracket matching
+function test() {
+    if (true) {
+        console.log("Testing [brackets] and (parentheses)");
+        let array = [1, 2, 3];
+        let obj = {
+            key: "value",
+            nested: {
+                deep: true
+            }
+        };
+    }
+}
+
+// Unmatched brackets for testing bad highlight
+let unmatched = [
+let another = }
