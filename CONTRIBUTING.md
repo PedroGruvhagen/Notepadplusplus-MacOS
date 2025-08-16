@@ -1,6 +1,6 @@
 # Contributing to Notepad++ for macOS
 
-Hey there! 👋 Thanks for considering contributing to this project! I really appreciate any help I can get - this is a big undertaking and I'm learning as I go.
+Hey there! 👋 Thanks for considering contributing to this project! I really appreciate any help I can get, this is a big undertaking and I'm learning as I go.
 
 ## 🎯 What This Project Is About
 
