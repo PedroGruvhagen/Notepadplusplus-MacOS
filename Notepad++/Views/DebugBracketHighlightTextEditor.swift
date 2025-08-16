@@ -22,7 +22,7 @@ extension BracketHighlightTextEditor.Coordinator {
             }
         }
         
-        guard let textStorage = textView.textStorage else {
+        guard textView.textStorage != nil else {
             print("ERROR: No text storage!")
             return
         }

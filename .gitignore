@@ -104,6 +104,9 @@ iOSInjectionProject/
 !README.md
 !CONTRIBUTING.md
 !AGENT.md
+!CLAUDE.md
+!PORTING_NOTES.md
+!TOMORROW_PROMPT.md
 
 # Icon must end with two \r
 Icon

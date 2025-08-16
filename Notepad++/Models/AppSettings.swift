@@ -2,11 +2,40 @@
 //  AppSettings.swift
 //  Notepad++
 //
-//  Settings model matching original Notepad++ preferences
+//  DIRECT TRANSLATION of Parameters.h structures
+//  Original location: PowerEditor/src/Parameters.h
 //
 
 import Foundation
 import SwiftUI
+
+// Translation of: struct LargeFileRestriction final
+// Original location: Parameters.h line 828-841
+struct LargeFileRestriction: Codable {
+    // Line 830: int64_t _largeFileSizeDefInByte = NPP_STYLING_FILESIZE_LIMIT_DEFAULT;
+    var fileSizeMB: Int = 200 // Default 200MB
+    
+    // Line 831: bool _isEnabled = true;
+    var isEnabled: Bool = true
+    
+    // Line 833: bool _deactivateWordWrap = true;
+    var deactivateWordWrap: Bool = true
+    
+    // Line 835: bool _allowBraceMatch = false;
+    var allowBraceMatch: Bool = false
+    
+    // Line 836: bool _allowAutoCompletion = false;
+    var allowAutoCompletion: Bool = false
+    
+    // Line 837: bool _allowSmartHilite = false;
+    var allowSmartHilite: Bool = false
+    
+    // Line 838: bool _allowClickableLink = false;
+    var allowClickableLink: Bool = false
+    
+    // Line 840: bool _suppress2GBWarning = false;
+    var suppress2GBWarning: Bool = false
+}
 
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
@@ -90,7 +119,24 @@ class AppSettings: ObservableObject {
     @AppStorage("maxRecentFiles") var maxRecentFiles: Int = 10
     @AppStorage("showRecentFilesInSubmenu") var showRecentFilesInSubmenu: Bool = false
     
-    // MARK: - Performance Settings
+    // MARK: - Performance Settings (Translation of LargeFileRestriction)
+    // This is stored as a single JSON object to match original structure
+    var largeFileRestriction: LargeFileRestriction {
+        get {
+            if let data = defaults.data(forKey: "largeFileRestriction"),
+               let restriction = try? JSONDecoder().decode(LargeFileRestriction.self, from: data) {
+                return restriction
+            }
+            return LargeFileRestriction() // Return default
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: "largeFileRestriction")
+            }
+        }
+    }
+    
+    // Legacy compatibility - will be removed
     @AppStorage("largeFileSize") var largeFileSize: Int = 200 // MB
     @AppStorage("disableHighlightingForLargeFiles") var disableHighlightingForLargeFiles: Bool = true
     @AppStorage("disableAutoCompletionForLargeFiles") var disableAutoCompletionForLargeFiles: Bool = true

@@ -1,35 +1,45 @@
-# Notepad++ for macOS (Unofficial PORT)
+# Notepad++ for macOS (Personal Project)
 
-A DIRECT PORT of Notepad++ ARM version to macOS, built with Swift and SwiftUI, optimized exclusively for Apple Silicon.
+Hey! I'm trying to port Notepad++ to macOS because I really miss having it on my Mac. This is a personal project I'm working on in my free time.
 
-## 🎯 Project Goal
+## 🤷‍♂️ What This Is
 
-PORT the exact functionality of Notepad++ Windows ARM version to macOS with a fully native experience that runs seamlessly on Apple Silicon (M1/M2/M3/M4) Macs.
+I'm attempting to translate Notepad++ from Windows (C++) to macOS (Swift). I'm not a professional programmer - I'm just someone who loves Notepad++ and wants it on Mac. I'm basically "vibe coding" this whole thing, learning as I go.
 
-**THIS IS A PORT**: We are directly porting features, settings, and behaviors from the original Notepad++ source code, not creating a "similar" or "inspired by" application.
+**Why am I doing this?**
+- I switched to Mac but really miss Notepad++
+- Couldn't find a good Mac equivalent that feels the same
+- Thought it would be a fun challenge to learn Swift
+- Figured if I'm building it anyway, might as well share it in case it helps someone else
 
-## 🙏 Attribution
+## 🎯 My Approach
 
-This project is a **DIRECT PORT of [Notepad++](https://notepad-plus-plus.org/)** to macOS, the fantastic open-source text editor created by Don Ho. We have tremendous respect for the original project and its community.
+I'm trying to do a literal translation of the original source code rather than reimagining it. I downloaded both the Notepad++ source and the Scintilla editor source, and I'm slowly translating functions from C++ to Swift. It's probably not the most efficient way, but it helps me understand how everything works.
+
+**Fair warning**: This is very much a work in progress and I'm learning as I go. There will be bugs, missing features, and probably some questionable code. I'm doing my best though!
+
+## 🙏 Credit Where Credit's Due
+
+**HUGE thanks to Don Ho and the Notepad++ team** for creating such an amazing editor. This project is my attempt to port [Notepad++](https://notepad-plus-plus.org/) to macOS because I love it so much.
 
 - **Original Notepad++**: [GitHub](https://github.com/notepad-plus-plus/notepad-plus-plus) | [Website](https://notepad-plus-plus.org/)
 - **Original License**: GPL v3
 - **Original Author**: Don Ho and contributors
 
-**Important**: This is an independent PORT of Notepad++ to macOS and is NOT officially affiliated with or endorsed by Notepad++ unless explicitly stated. We are porting the exact features and functionality from the original source code.
+**Disclaimer**: This is just my personal project and is NOT affiliated with or endorsed by the official Notepad++ team. I'm literally just a fan trying to get my favorite editor working on Mac. If the Notepad++ team has any concerns about this project, I'll happily make any changes they request or take it down.
 
-## 📝 Letter to Notepad++ Team
+## 📝 Note to the Notepad++ Team
 
 Dear Don Ho and Notepad++ Team,
 
-We've created this macOS port out of love for Notepad++ and a desire to bring its functionality to Mac users. We would be honored if you would consider:
+I'm just a fan who loves Notepad++ and missed it terribly after switching to Mac. This is my amateur attempt at porting it over. If you ever see this:
 
-1. Reviewing this implementation
-2. Potentially adopting it as an official macOS version
-3. Providing guidance on feature parity with the Windows ARM version
-4. Advising on trademark usage and naming
+1. Thank you for making such an incredible editor
+2. I hope you don't mind me trying to port it
+3. If you have any concerns or requests, please let me know
+4. If you ever want to make an official Mac version, I'd be happy to help or get out of the way - whatever you prefer!
 
-We're committed to respecting your project and will make any changes you request.
+This is really just a love letter to your amazing work.
 
 ## 🚀 Features
 
@@ -110,8 +120,8 @@ We're committed to respecting your project and will make any changes you request
 ## 💻 System Requirements
 
 - macOS 14.0 (Sonoma) or later
-- Apple Silicon Mac (M1/M2/M3/M4) - **Apple Silicon ONLY**
-- Xcode 16.0+ (for building from source)
+- Apple Silicon Mac (M1/M2/M3/M4) - I only have an M1 Mac to test on
+- Xcode 16.0+ (if you want to build from source)
 
 ## 🔨 Building from Source
 
@@ -126,17 +136,16 @@ open Notepad++.xcodeproj
 # Build and run (⌘R)
 ```
 
-## 🤝 Contributing
+## 🤝 Want to Help?
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+I'd love some help! I'm learning as I go, so if you know Swift or just love Notepad++ and want to contribute, please feel free to jump in. Even just testing and reporting bugs would be super helpful.
 
 ### How You Can Help
-- Implement missing Notepad++ features
-- Test on different macOS versions
-- Report bugs and issues
-- Improve performance
-- Add language definitions
-- Create themes
+- Tell me what I'm doing wrong (seriously, I need the feedback)
+- Help implement features I haven't figured out yet
+- Test it and let me know what breaks
+- Teach me better Swift practices
+- Or just give moral support 😅
 
 ## 📄 License
 
@@ -144,13 +153,12 @@ This macOS implementation is licensed under the **MIT License** - see [LICENSE](
 
 The original Notepad++ is licensed under GPL v3.
 
-## 🌟 Why This Project?
+## 🌟 Why Am I Doing This?
 
-- **Direct Port**: Exact feature-for-feature port of Notepad++ Windows ARM version
-- **Native Performance**: Built specifically for macOS and Apple Silicon
-- **macOS Integration**: Uses native macOS APIs while maintaining Notepad++ functionality
-- **Feature Parity**: Direct port of all Notepad++ Windows ARM version features
-- **Open Source**: Free and open for the community
+- **I miss Notepad++**: Seriously, I've tried so many Mac editors and none feel quite right
+- **Learning experience**: What better way to learn Swift than porting your favorite app?
+- **Sharing is caring**: If I'm building it anyway, why not share it?
+- **It's fun**: In a masochistic, "why did I start this" kind of way
 
 ## 📊 Comparison with Original
 
@@ -180,18 +188,24 @@ The original Notepad++ is licensed under GPL v3.
 - [Report Issues](https://github.com/[yourusername]/notepadplusplus-mac/issues)
 - [Discussions](https://github.com/[yourusername]/notepadplusplus-mac/discussions)
 
-## 🙌 Acknowledgments
+## 🙌 Thanks To
 
-- Don Ho for creating Notepad++
-- The entire Notepad++ community
-- Contributors to this macOS port
+- Don Ho for creating the best text editor ever
+- The Notepad++ community for keeping it awesome
+- Stack Overflow for teaching me Swift (one error at a time)
+- Coffee for making this possible
+- Anyone who tries this out and doesn't immediately uninstall it
 
-## 📧 Contact
+## 📧 Get in Touch
 
-If you're from the Notepad++ team and have questions or requests about this project, please open an issue or contact us directly.
+If you're from the Notepad++ team and have concerns about this project, please reach out! I'll do whatever you need.
+
+For everyone else - feel free to open issues, but please be patient. I'm doing this in my spare time and I'm still learning. Be gentle! 😊
 
 ---
 
-**Note to Users**: If you love Notepad++ on Windows, please consider [donating to the original project](https://notepad-plus-plus.org/donate/).
-
-**Note to Notepad++ Team**: We're ready to transfer this repository to your organization or make any changes you request. This project exists to serve the Notepad++ community.
+**Final thoughts**: 
+- If you love Notepad++, please [donate to the original project](https://notepad-plus-plus.org/donate/)
+- This is a hobby project - expect bugs and missing features
+- I'm not a real programmer, just someone who refuses to give up on their favorite editor
+- If this helps even one person, it was worth it!
