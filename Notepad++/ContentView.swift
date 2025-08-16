@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var documentManager = DocumentManager()
+    @EnvironmentObject var documentManager: DocumentManager
     @StateObject private var settingsManager = SettingsManager.shared
     @ObservedObject private var settings = AppSettings.shared
     @State private var searchText = ""

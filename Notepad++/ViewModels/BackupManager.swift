@@ -312,11 +312,3 @@ extension DateFormatter {
     }()
 }
 
-// Extension to make DocumentManager accessible
-extension DocumentManager {
-    static var shared: DocumentManager {
-        // This assumes DocumentManager is a singleton or accessible somehow
-        // You might need to adjust this based on your actual implementation
-        return DocumentManager()
-    }
-}
