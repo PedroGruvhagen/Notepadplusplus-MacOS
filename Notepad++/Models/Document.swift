@@ -27,6 +27,7 @@ class Document: ObservableObject, Identifiable {
     @Published var fileExtension: String?
     @Published var language: LanguageDefinition?
     @Published var foldingState = FoldingState()
+    @Published var encoding: FileEncoding = .utf8
     
     private var lastSavedContent: String
     
@@ -110,8 +111,11 @@ class Document: ObservableObject, Identifiable {
         BackupManager.shared.createBackup(for: self)
         
         let contentToSave = content
+        let encodingToUse = encoding
         try await Task {
-            try contentToSave.write(to: url, atomically: true, encoding: .utf8)
+            try await MainActor.run {
+                try EncodingManager.shared.writeFile(content: contentToSave, to: url, encoding: encodingToUse)
+            }
         }.value
         markAsSaved()
     }
@@ -135,14 +139,21 @@ class Document: ObservableObject, Identifiable {
     }
     
     static func open(from url: URL) async throws -> Document {
-        // Read file content on background thread
-        let content = try await Task.detached {
-            try String(contentsOf: url, encoding: .utf8)
+        // Read file with encoding detection on background thread
+        let (content, detectedEncoding) = try await Task.detached {
+            // Encoding detection must happen on main thread
+            let result = try await MainActor.run {
+                let settings = AppSettings.shared
+                return try EncodingManager.shared.readFile(at: url, openAnsiAsUtf8: settings.openAnsiAsUtf8)
+            }
+            return result
         }.value
         
         // Create Document on main thread
         return await MainActor.run {
-            Document(content: content, filePath: url)
+            let doc = Document(content: content, filePath: url)
+            doc.encoding = detectedEncoding
+            return doc
         }
     }
 }
