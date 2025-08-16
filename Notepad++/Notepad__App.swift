@@ -14,8 +14,8 @@ struct Notepad__App: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     init() {
-        // Restore session on app launch
-        BackupManager.shared.restoreSession()
+        // Restore session on app launch (will be handled in AppDelegate)
+        // Don't restore here to avoid race conditions
     }
     
     var body: some Scene {
@@ -400,9 +400,12 @@ struct Notepad__App: App {
 // MARK: - AppDelegate for handling file opening from Finder
 class AppDelegate: NSObject, NSApplicationDelegate {
     weak var documentManager: DocumentManager?
+    private var filesOpenedAtLaunch = false
+    private var hasCheckedForUntitled = false
     
     func application(_ application: NSApplication, open urls: [URL]) {
         // Handle files dropped on dock icon or opened via "Open With"
+        filesOpenedAtLaunch = true
         Task { @MainActor in
             for url in urls {
                 await documentManager?.openDocument(from: url)
@@ -411,8 +414,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        // Don't create untitled document on launch if we have restored session
-        return documentManager?.tabs.isEmpty ?? true
+        // Don't create untitled if files are being opened
+        return false // We handle untitled creation ourselves
+    }
+    
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Restore session first, then decide about untitled document
+        Task { @MainActor in
+            // Try to restore session
+            BackupManager.shared.restoreSession()
+            
+            // Give time for file opening from Finder and session restoration
+            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+            
+            guard !hasCheckedForUntitled else { return }
+            hasCheckedForUntitled = true
+            
+            if let manager = documentManager, 
+               manager.tabs.isEmpty && 
+               !filesOpenedAtLaunch {
+                // Only create untitled if truly nothing was opened
+                manager.createNewDocument()
+            }
+        }
     }
 }
 
