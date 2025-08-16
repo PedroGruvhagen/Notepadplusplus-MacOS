@@ -19,9 +19,8 @@ class DocumentManager: ObservableObject {
     
     init() {
         loadRecentFiles()
-        if tabs.isEmpty {
-            createNewDocument()
-        }
+        // Don't automatically create new document
+        // Let the app decide based on launch context
     }
     
     func createNewDocument() {
