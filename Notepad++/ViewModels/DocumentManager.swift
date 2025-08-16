@@ -11,6 +11,8 @@ import UniformTypeIdentifiers
 
 @MainActor
 class DocumentManager: ObservableObject {
+    static let shared = DocumentManager()
+    
     @Published var tabs: [EditorTab] = []
     @Published var activeTab: EditorTab?
     @Published var recentFiles: [URL] = []
