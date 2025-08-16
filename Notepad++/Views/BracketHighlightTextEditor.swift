@@ -29,7 +29,7 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
     let syntaxHighlightingEnabled: Bool
     let onTextChange: ((String) -> Void)?
     
-    private let bracketMatcher = BracketMatcher.shared
+    // REMOVED: Using translated Notepad++ braceMatch functions instead
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -312,20 +312,11 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         func updateBracketHighlighting() {
             guard let textView = textView,
                   AppSettings.shared.matchBraces else { return }
-            let text = textView.string
-            let selectedRange = textView.selectedRange()
             
-            // Remove previous bracket highlighting (with bounds checking)
-            if let previousMatch = currentMatchingBracket,
-               let textStorage = textView.textStorage,
-               previousMatch.location + previousMatch.length <= text.count {
-                textStorage.removeAttribute(.backgroundColor, range: previousMatch)
-            }
-            
-            // Clear all bracket highlighting first (safely)
-            if let textStorage = textView.textStorage, !text.isEmpty {
-                let safeRange = NSRange(location: 0, length: text.count)
-                textStorage.removeAttribute(.backgroundColor, range: safeRange)
+            // Clear previous bracket highlighting
+            if let textStorage = textView.textStorage {
+                let fullRange = NSRange(location: 0, length: textStorage.length)
+                textStorage.removeAttribute(.backgroundColor, range: fullRange)
             }
             
             // Apply syntax highlighting if enabled
@@ -333,54 +324,13 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
                 applySyntaxHighlighting(textView: textView, language: language)
             }
             
-            // Find and highlight matching bracket
-            if selectedRange.length == 0 {
-                let cursorPos = selectedRange.location
-                
-                // Check character at cursor position
-                if cursorPos > 0 && cursorPos <= text.count {
-                    // Check character before cursor
-                    if let matchingPos = parent.bracketMatcher.findMatchingBracket(in: text, at: cursorPos - 1) {
-                        highlightBracketPair(at: cursorPos - 1, and: matchingPos, in: textView)
-                    }
-                    // Check character at cursor
-                    else if cursorPos < text.count,
-                            let matchingPos = parent.bracketMatcher.findMatchingBracket(in: text, at: cursorPos) {
-                        highlightBracketPair(at: cursorPos, and: matchingPos, in: textView)
-                    }
-                }
-            }
-            
-            // Highlight unmatched brackets in red
-            let unmatchedBrackets = parent.bracketMatcher.findUnmatchedBrackets(in: text)
-            for position in unmatchedBrackets {
-                if position < text.count {
-                    textView.textStorage?.addAttribute(.backgroundColor,
-                                                      value: NSColor.systemRed.withAlphaComponent(0.3),
-                                                      range: NSRange(location: position, length: 1))
-                }
-            }
+            // Use the translated Notepad++ braceMatch function
+            // This is a DIRECT PORT from Notepad_plus.cpp line 2993-3024
+            textView.performBraceMatch()
         }
         
-        private func highlightBracketPair(at pos1: Int, and pos2: Int, in textView: NSTextView) {
-            guard let textStorage = textView.textStorage else { return }
-            
-            let highlightColor = NSColor.systemYellow.withAlphaComponent(0.5)
-            
-            // Highlight both brackets
-            if pos1 < textStorage.length {
-                textStorage.addAttribute(.backgroundColor,
-                                        value: highlightColor,
-                                        range: NSRange(location: pos1, length: 1))
-            }
-            
-            if pos2 < textStorage.length {
-                textStorage.addAttribute(.backgroundColor,
-                                        value: highlightColor,
-                                        range: NSRange(location: pos2, length: 1))
-                currentMatchingBracket = NSRange(location: pos2, length: 1)
-            }
-        }
+        // REMOVED: highlightBracketPair - Now handled by NSTextView.braceHighlight() 
+        // which is a direct translation of SCI_BRACEHIGHLIGHT
         
         func applySyntaxHighlighting(textView: NSTextView, language: LanguageDefinition) {
             guard let textStorage = textView.textStorage else { return }
@@ -511,26 +461,22 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         }
         
         // Handle bracket navigation (Cmd+M to jump to matching bracket)
+        // Translation of IDM_SEARCH_GOTOMATCHINGBRACE handling from NppCommands.cpp
         @objc func jumpToMatchingBracket(_ sender: Any?) {
             guard let textView = textView else { return }
-            let text = textView.string
-            let selectedRange = textView.selectedRange()
             
-            if selectedRange.length == 0 {
-                let cursorPos = selectedRange.location
-                
-                // Try character before cursor first
-                if cursorPos > 0,
-                   let matchingPos = parent.bracketMatcher.findMatchingBracket(in: text, at: cursorPos - 1) {
-                    textView.setSelectedRange(NSRange(location: matchingPos + 1, length: 0))
-                    textView.scrollRangeToVisible(NSRange(location: matchingPos, length: 1))
-                }
-                // Try character at cursor
-                else if cursorPos < text.count,
-                        let matchingPos = parent.bracketMatcher.findMatchingBracket(in: text, at: cursorPos) {
-                    textView.setSelectedRange(NSRange(location: matchingPos, length: 0))
-                    textView.scrollRangeToVisible(NSRange(location: matchingPos, length: 1))
-                }
+            // Direct translation from NppCommands.cpp line 1784-1795
+            var braceAtCaret: Int = -1
+            var braceOpposite: Int = -1
+            
+            // Line 1786: findMatchingBracePos(braceAtCaret, braceOpposite);
+            textView.findMatchingBracePos(&braceAtCaret, &braceOpposite)
+            
+            // Line 1788-1795: Jump to matching brace if found
+            if braceOpposite != -1 {
+                // Set cursor position to matching brace
+                textView.setSelectedRange(NSRange(location: braceOpposite, length: 0))
+                textView.scrollRangeToVisible(NSRange(location: braceOpposite, length: 1))
             }
         }
         

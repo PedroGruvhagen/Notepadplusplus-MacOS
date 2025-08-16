@@ -231,7 +231,7 @@ class FoldableTextView: NSTextView {
         
         guard let foldingState = foldingState,
               let layoutManager = layoutManager,
-              let textContainer = textContainer else { return }
+              textContainer != nil else { return }
         
         let lines = string.components(separatedBy: .newlines)
         var visibleLineIndex = 0
