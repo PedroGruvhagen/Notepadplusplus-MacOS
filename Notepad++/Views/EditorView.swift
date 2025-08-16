@@ -222,7 +222,7 @@ struct StatusBarView: View {
             Divider()
                 .frame(height: 12)
             
-            Text("UTF-8")
+            Text(document.encoding.displayName)
                 .font(.system(size: 11))
         }
         .padding(.horizontal, 10)
