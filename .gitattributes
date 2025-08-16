@@ -1,0 +1,11 @@
+# Exclude test files from language statistics
+test*.py linguist-vendored
+test*.swift linguist-vendored
+test*.txt linguist-vendored
+
+# Mark backup files as generated
+*.backup linguist-generated
+*.deprecated linguist-generated
+
+# Documentation files
+*.md linguist-documentation
