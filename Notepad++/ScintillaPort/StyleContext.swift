@@ -44,8 +44,8 @@ enum SCE_C {
 // MARK: - LexAccessor (Simplified for Swift)
 // This provides access to the document text and styling
 class LexAccessor {
-    private var text: String
-    private var styles: [Int]
+    var text: String
+    var styles: [Int]
     private var startSegment: Int = 0
     
     init(text: String) {
