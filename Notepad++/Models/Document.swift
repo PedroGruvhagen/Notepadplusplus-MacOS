@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import CoreGraphics
 
 @MainActor
 class Document: ObservableObject, Identifiable {
@@ -29,6 +30,9 @@ class Document: ObservableObject, Identifiable {
     @Published var foldingState = FoldingState()
     @Published var encoding: FileEncoding = .utf8
     @Published var eolType: EOLType = .unix
+    @Published var caretPosition: Int = 0  // Caret position in the text
+    @Published var scrollPosition: CGPoint = .zero  // Scroll position
+    @Published var selectedRange: NSRange = NSRange(location: 0, length: 0)  // Selected text range
     
     private var lastSavedContent: String
     
