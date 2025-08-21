@@ -139,39 +139,5 @@ class ScintillaDocument {
     }
 }
 
-// MARK: - CellBuffer (Simplified translation)
-// This would be a full translation of CellBuffer.cxx
-class CellBuffer {
-    private var text: String = ""
-    private var styles: [UInt8] = []
-    
-    func charAt(_ position: Int) -> Character {
-        guard position >= 0 && position < text.count else {
-            return "\0"
-        }
-        let index = text.index(text.startIndex, offsetBy: position)
-        return text[index]
-    }
-    
-    func styleAt(_ position: Int) -> UInt8 {
-        guard position >= 0 && position < styles.count else {
-            return 0
-        }
-        return styles[position]
-    }
-    
-    func length() -> Int {
-        return text.count
-    }
-    
-    // Methods to set text and styles
-    func setText(_ newText: String) {
-        text = newText
-        styles = Array(repeating: 0, count: text.count)
-    }
-    
-    func setStyleAt(_ position: Int, _ style: UInt8) {
-        guard position >= 0 && position < styles.count else { return }
-        styles[position] = style
-    }
-}
+// CellBuffer is now properly translated in CellBuffer.swift
+// Using the full literal translation from Scintilla's CellBuffer.cxx
