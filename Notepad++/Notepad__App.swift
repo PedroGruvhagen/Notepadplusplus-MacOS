@@ -419,12 +419,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Restore session first, then decide about untitled document
+        // Don't restore session - app should start fresh every time
         Task { @MainActor in
-            // Try to restore session
-            BackupManager.shared.restoreSession()
-            
-            // Give time for file opening from Finder and session restoration
+            // Give time for file opening from Finder if launched with file
             try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
             
             guard !hasCheckedForUntitled else { return }
