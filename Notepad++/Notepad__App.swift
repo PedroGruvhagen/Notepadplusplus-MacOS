@@ -26,12 +26,8 @@ struct Notepad__App: App {
                     // Connect documentManager to appDelegate when view appears
                     appDelegate.documentManager = documentManager
                 }
-                .onOpenURL { url in
-                    // Handle files opened from Finder or command line
-                    Task { @MainActor in
-                        await documentManager.openDocument(from: url)
-                    }
-                }
+                // Removed onOpenURL to prevent duplicate file opening
+                // File opening is handled by AppDelegate's application(_:open:) method
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
