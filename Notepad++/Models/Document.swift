@@ -91,9 +91,8 @@ class Document: ObservableObject, Identifiable {
     }
     
     deinit {
-        Task { @MainActor in
-            stopFileMonitoring()
-        }
+        // FileMonitor cleanup happens automatically when fileMonitor is deallocated
+        // No need for explicit Task here as FileMonitor.deinit handles cleanup
     }
     
     /// Start monitoring the file for external changes

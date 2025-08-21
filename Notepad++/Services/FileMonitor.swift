@@ -38,9 +38,9 @@ class FileMonitor {
     }
     
     deinit {
-        Task { @MainActor in
-            stop()
-        }
+        // Stop monitoring when deallocated
+        // The DispatchSource will be cancelled automatically
+        fileMonitorSource?.cancel()
     }
     
     /// Translation of Buffer::checkFileState() from Buffer.cpp line 350
@@ -83,8 +83,8 @@ class FileMonitor {
             hasFileStateChanged = true
             
             // Reload the file automatically
-            Task { @MainActor in
-                self.reloadFile()
+            DispatchQueue.main.async { [weak self] in
+                self?.reloadFile()
             }
         }
         // Line 423-441: File has been modified
@@ -97,8 +97,8 @@ class FileMonitor {
                 hasFileStateChanged = true
                 
                 // Line 439: doNotify(BufferChangeTimestamp | BufferChangeStatus)
-                Task { @MainActor in
-                    self.handleFileModified()
+                DispatchQueue.main.async { [weak self] in
+                    self?.handleFileModified()
                 }
             }
         }
