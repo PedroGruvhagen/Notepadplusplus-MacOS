@@ -50,6 +50,7 @@ class AppSettings: ObservableObject {
     @AppStorage("rememberLastSession") var rememberLastSession: Bool = true
     @AppStorage("checkForUpdates") var checkForUpdates: Bool = true
     @AppStorage("updateInterval") var updateIntervalDays: Int = 15
+    @AppStorage("detectFileChanges") var detectFileChanges: Bool = true
     
     // MARK: - Editor Settings
     @AppStorage("fontName") var fontName: String = "Menlo"
