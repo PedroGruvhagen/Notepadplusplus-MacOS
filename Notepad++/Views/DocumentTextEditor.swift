@@ -54,9 +54,21 @@ struct DocumentTextEditor: NSViewRepresentable {
         let theme = ThemeManager.shared.currentTheme
         let font = NSFont(name: fontName, size: fontSize) ?? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.font = font
-        textView.textColor = theme.textColor
-        textView.backgroundColor = theme.backgroundColor
-        textView.insertionPointColor = NSColor.labelColor
+        
+        // Ensure text is always visible with proper contrast
+        let bgColor = theme.backgroundColor
+        let txtColor = theme.textColor
+        
+        // Fallback: if colors are too similar, force black on white
+        if abs(bgColor.brightnessComponent - txtColor.brightnessComponent) < 0.3 {
+            textView.textColor = .black
+            textView.backgroundColor = .white
+        } else {
+            textView.textColor = txtColor
+            textView.backgroundColor = bgColor
+        }
+        
+        textView.insertionPointColor = textView.textColor
         textView.selectedTextAttributes = [
             .backgroundColor: theme.selectionColor,
             .foregroundColor: theme.textColor
