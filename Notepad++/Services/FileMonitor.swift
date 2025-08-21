@@ -2,164 +2,209 @@
 //  FileMonitor.swift
 //  Notepad++
 //
-//  Monitors file changes using DispatchSource for file system events
-//  Port of Notepad++ ReadDirectoryChanges functionality
+//  LITERAL TRANSLATION of Notepad++ file monitoring functionality
+//  From Buffer.cpp checkFileState() and related functions
 //
 
 import Foundation
 import AppKit
 
-/// Monitors a file for external changes
+/// Translation of Buffer::checkFileState() from Buffer.cpp line 350-450
+/// Returns true if the status has been changed. false otherwise
+@MainActor
 class FileMonitor {
-    private var fileURL: URL
-    private var source: DispatchSourceFileSystemObject?
-    private var fileDescriptor: Int32 = -1
+    
+    // Translation of DocFileStatus enum from Buffer.h
+    enum DocFileStatus {
+        case regular      // DOC_REGULAR
+        case unnamed      // DOC_UNNAMED  
+        case deleted      // DOC_DELETED
+        case modified     // DOC_MODIFIED
+    }
+    
     private weak var document: Document?
-    private var lastModificationDate: Date?
+    private var lastModificationTime: Date?
+    private var currentStatus: DocFileStatus = .regular
+    private var fileMonitorSource: DispatchSourceFileSystemObject?
+    private let monitorQueue = DispatchQueue(label: "com.notepadplusplus.filemonitor")
+    
+    // Translation of reloadThrottleInterval from original implementation
+    private let reloadThrottleInterval: TimeInterval = 0.25
     private var lastReloadTime: Date?
-    private let reloadThrottleInterval: TimeInterval = 0.25 // 250ms rate limiting like original
     
     init(fileURL: URL, document: Document) {
-        self.fileURL = fileURL
         self.document = document
-        self.lastModificationDate = getModificationDate()
+        updateFileURL(fileURL)
     }
     
     deinit {
         stop()
     }
     
-    /// Start monitoring the file for changes
-    func start() {
-        guard AppSettings.shared.detectFileChanges else { return } // File monitoring disabled
-        guard fileDescriptor == -1 else { return } // Already monitoring
-        
-        // Open file descriptor for monitoring
-        fileDescriptor = open(fileURL.path, O_EVTONLY)
-        guard fileDescriptor != -1 else {
-            print("Failed to open file for monitoring: \(fileURL.path)")
-            return
+    /// Translation of Buffer::checkFileState() from Buffer.cpp line 350
+    func checkFileState() -> Bool {
+        guard let document = document,
+              let fileURL = document.fileURL else {
+            return false
         }
         
-        // Create dispatch source for file system events
-        let queue = DispatchQueue(label: "com.notepadplusplus.filemonitor.\(fileURL.lastPathComponent)")
-        source = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fileDescriptor,
-            eventMask: [.write, .delete, .rename],
-            queue: queue
-        )
-        
-        source?.setEventHandler { [weak self] in
-            self?.handleFileEvent()
+        // Line 355-356: Unsaved document cannot change by environment
+        if currentStatus == .unnamed {
+            return false
         }
         
-        source?.setCancelHandler { [weak self] in
-            if let fd = self?.fileDescriptor, fd != -1 {
-                close(fd)
-                self?.fileDescriptor = -1
+        // Line 364-365: Check file attributes
+        var fileExists = false
+        var fileModificationDate: Date?
+        
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+            fileExists = true
+            fileModificationDate = attributes[.modificationDate] as? Date
+        } catch {
+            fileExists = false
+        }
+        
+        var hasFileStateChanged = false
+        
+        // Line 399-410: File has been deleted
+        if !fileExists && currentStatus == .regular {
+            currentStatus = .deleted
+            hasFileStateChanged = true
+            
+            // Notify document of deletion (equivalent to doNotify(BufferChangeStatus))
+            document.handleExternalDeletion()
+        }
+        // Line 411-422: File has been restored
+        else if fileExists && currentStatus == .deleted {
+            currentStatus = .regular
+            hasFileStateChanged = true
+            
+            // Reload the file automatically
+            Task { @MainActor in
+                self.reloadFile()
             }
         }
-        
-        source?.resume()
-    }
-    
-    /// Stop monitoring the file
-    func stop() {
-        source?.cancel()
-        source = nil
-        if fileDescriptor != -1 {
-            close(fileDescriptor)
-            fileDescriptor = -1
-        }
-    }
-    
-    /// Handle file system events
-    /// Port of Notepad++ file monitoring behavior - NO USER PROMPTS
-    private func handleFileEvent() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self,
-                  let _ = self.document else { return }
-            
-            // Check if file still exists
-            let fileExists = FileManager.default.fileExists(atPath: self.fileURL.path)
-            
-            if !fileExists {
-                // File was deleted - Original behavior: just stop monitoring
-                // Port of NPPM_INTERNAL_STOPMONITORING
-                self.stop()
-                // Keep file in editor, mark as modified since it no longer exists on disk
-                self.document?.isModified = true
-            } else {
-                // File was modified - check modification date to avoid false positives
-                let currentModDate = self.getModificationDate()
-                if let lastDate = self.lastModificationDate,
-                   let currentDate = currentModDate,
-                   currentDate > lastDate {
-                    
-                    self.lastModificationDate = currentDate
-                    
-                    // Original Notepad++ behavior: ALWAYS auto-reload, no prompts
-                    // Port of NPPM_INTERNAL_RELOADSCROLLTOEND
-                    self.reloadFile()
+        // Line 423-441: File has been modified
+        else if fileExists && currentStatus == .regular {
+            if let modDate = fileModificationDate,
+               let lastMod = lastModificationTime,
+               modDate > lastMod {
+                
+                currentStatus = .modified
+                hasFileStateChanged = true
+                
+                // Line 439: doNotify(BufferChangeTimestamp | BufferChangeStatus)
+                Task { @MainActor in
+                    self.handleFileModified()
                 }
             }
         }
-    }
-    
-    /// Get file modification date
-    private func getModificationDate() -> Date? {
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
-            return attributes[.modificationDate] as? Date
-        } catch {
-            return nil
-        }
-    }
-    
-    /// Reload file from disk with rate limiting
-    /// Port of Buffer::reload() from Buffer.cpp
-    private func reloadFile() {
-        // Rate limiting - Port of Sleep(250) from NppIO.cpp
-        let now = Date()
-        if let lastReload = lastReloadTime,
-           now.timeIntervalSince(lastReload) < reloadThrottleInterval {
-            return // Skip reload due to rate limiting
-        }
-        lastReloadTime = now
         
-        Task { @MainActor in
-            do {
-                // Read file with encoding detection
-                let (content, detectedEncoding, detectedEOL) = try EncodingManager.shared.readFile(
-                    at: fileURL,
-                    openAnsiAsUtf8: AppSettings.shared.openAnsiAsUtf8
-                )
-                
-                // Update document - Port of direct buffer reload
-                // Use forceUpdateContent to bypass content protection for external reloads
-                document?.forceUpdateContent(content, encoding: detectedEncoding, eol: detectedEOL)
-                
-                // Original Notepad++ does NOT mark as saved after reload
-                // It preserves the modified state for user awareness
-                // document?.markAsSaved() // REMOVED - not in original
-                
-                // Update modification date
-                lastModificationDate = getModificationDate()
-                
-                // Silent reload - no user notification (matches original)
-            } catch {
-                // Original Notepad++ behavior: Silent failure, no user prompt
-                // Just stop monitoring on error
-                stop()
+        return hasFileStateChanged
+    }
+    
+    /// Translation of Notepad_plus::doReload() behavior when alert=false
+    /// From NppIO.cpp line 555-641
+    private func reloadFile() {
+        guard let document = document else { return }
+        
+        // Apply rate limiting as in original
+        if let lastReload = lastReloadTime,
+           Date().timeIntervalSince(lastReload) < reloadThrottleInterval {
+            return
+        }
+        lastReloadTime = Date()
+        
+        // Line 557-566: When alert is false (no dirty), skip the dialog
+        // This matches Notepad++ behavior of auto-reloading without prompts
+        
+        guard let fileURL = document.fileURL else { return }
+        
+        do {
+            // Read file content
+            let (content, encoding, eol) = try EncodingManager.shared.readFile(
+                at: fileURL,
+                openAnsiAsUtf8: AppSettings.shared.openAnsiAsUtf8
+            )
+            
+            // Line 594: MainFileManager.reloadBuffer(id)
+            // Force update content - bypass the normal update to prevent reverting
+            document.forceUpdateContent(content, encoding: encoding, eol: eol)
+            
+            // Update our tracking
+            lastModificationTime = try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.modificationDate] as? Date
+            currentStatus = .regular
+            
+        } catch {
+            print("Failed to reload file: \(error)")
+        }
+    }
+    
+    /// Handle file modification - translation of notification behavior
+    private func handleFileModified() {
+        guard let document = document else { return }
+        
+        // If document is not dirty, reload automatically
+        // This matches Notepad++ behavior from checkModifiedDocument
+        if !document.isModified {
+            reloadFile()
+        }
+        // If dirty, Notepad++ shows status but doesn't prompt
+        // The user can manually reload if needed
+    }
+    
+    // MARK: - File System Monitoring
+    
+    func start() {
+        guard let fileURL = document?.fileURL else { return }
+        
+        // Get initial modification time
+        lastModificationTime = try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.modificationDate] as? Date
+        
+        // Set up file system monitoring
+        let fileDescriptor = open(fileURL.path, O_EVTONLY)
+        guard fileDescriptor >= 0 else { return }
+        
+        fileMonitorSource = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fileDescriptor,
+            eventMask: [.write, .delete, .rename],
+            queue: monitorQueue
+        )
+        
+        fileMonitorSource?.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                // Call checkFileState as Notepad++ does
+                _ = self?.checkFileState()
             }
         }
+        
+        fileMonitorSource?.setCancelHandler {
+            close(fileDescriptor)
+        }
+        
+        fileMonitorSource?.resume()
     }
     
-    /// Update file URL if document is saved to a new location
+    func stop() {
+        fileMonitorSource?.cancel()
+        fileMonitorSource = nil
+    }
+    
     func updateFileURL(_ newURL: URL) {
         stop()
-        fileURL = newURL
-        lastModificationDate = getModificationDate()
+        document?.fileURL = newURL
         start()
+    }
+}
+
+// MARK: - Document Extension for File Monitoring
+
+extension Document {
+    /// Handle external file deletion - matches Buffer notification behavior
+    func handleExternalDeletion() {
+        // In Notepad++, this triggers a status bar update
+        // We don't prompt the user, just update status
+        print("File has been deleted: \(fileName)")
     }
 }
