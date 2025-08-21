@@ -232,7 +232,7 @@ class Document: ObservableObject, Identifiable {
     
     /// Activate this document in the text view (port of ScintillaEditView::activateBuffer)
     /// This is the CRITICAL method that performs the document swap
-    func activate(in textView: NSTextView) {
+    func activate(in textView: NSTextView, restorePosition: Bool = false) {
         // Port of SCI_SETDOCPOINTER - swap the entire text storage
         if let layoutManager = textView.layoutManager {
             // Remove text view from old text storage
@@ -247,8 +247,10 @@ class Document: ObservableObject, Identifiable {
             applySyntaxHighlighting(to: textView, language: language)
         }
         
-        // Restore saved state
-        restoreState(to: textView)
+        // Only restore saved state when explicitly requested (e.g., when switching tabs)
+        if restorePosition {
+            restoreState(to: textView)
+        }
     }
     
     private func applySyntaxHighlighting(to textView: NSTextView, language: LanguageDefinition) {
