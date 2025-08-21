@@ -85,8 +85,8 @@ struct Theme {
     
     static let defaultTheme = Theme(
         name: "Default",
-        backgroundColor: NSColor.textBackgroundColor,
-        textColor: NSColor.labelColor,
+        backgroundColor: NSColor.white,  // Explicit white background
+        textColor: NSColor.black,  // Explicit black text for guaranteed contrast
         selectionColor: NSColor.selectedTextBackgroundColor,
         currentLineColor: NSColor(white: 0.95, alpha: 1.0),
         keywordColor: .systemPurple,
