@@ -169,8 +169,8 @@ struct DocumentTextEditor: NSViewRepresentable {
             // Save state from old document
             context.coordinator.document?.saveState(from: textView)
             
-            // Activate new document (swaps text storage)
-            document.activate(in: textView)
+            // Activate new document (swaps text storage) and restore position when switching tabs
+            document.activate(in: textView, restorePosition: true)
             
             // Update coordinator reference
             context.coordinator.document = document
