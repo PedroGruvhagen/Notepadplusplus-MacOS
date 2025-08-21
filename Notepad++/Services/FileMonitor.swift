@@ -25,7 +25,7 @@ class FileMonitor {
     private weak var document: Document?
     private var lastModificationTime: Date?
     private var currentStatus: DocFileStatus = .regular
-    private var fileMonitorSource: DispatchSourceFileSystemObject?
+    nonisolated(unsafe) private var fileMonitorSource: DispatchSourceFileSystemObject?
     private let monitorQueue = DispatchQueue(label: "com.notepadplusplus.filemonitor")
     
     // Translation of reloadThrottleInterval from original implementation
@@ -39,8 +39,8 @@ class FileMonitor {
     
     deinit {
         // Stop monitoring when deallocated
-        // The DispatchSource will be cancelled automatically
-        fileMonitorSource?.cancel()
+        // Cancel the source if it hasn't been cancelled already
+        stop()
     }
     
     /// Translation of Buffer::checkFileState() from Buffer.cpp line 350
@@ -188,7 +188,9 @@ class FileMonitor {
         fileMonitorSource?.resume()
     }
     
-    func stop() {
+    nonisolated func stop() {
+        // Safe to call multiple times
+        // This needs to be nonisolated so it can be called from deinit
         fileMonitorSource?.cancel()
         fileMonitorSource = nil
     }
