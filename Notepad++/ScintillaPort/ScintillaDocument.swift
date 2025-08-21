@@ -23,25 +23,25 @@ class ScintillaDocument {
     private var dbcsCodePage: Int = 0
     private var hasStyles: Bool = true
     
-    init() {
+    @MainActor init() {
         self.cb = CellBuffer()
     }
     
     // MARK: - Direct translations from Document.cxx
     
     // Translation of: Document::CharAt (Document.h:475)
-    func charAt(_ position: Int) -> Character {
-        return cb.charAt(position)
+    @MainActor func charAt(_ position: Int) -> Character {
+        return cb.charAt(position) ?? "\0"
     }
     
     // Translation of: Document::StyleIndexAt (Document.h:481)
-    func styleIndexAt(_ position: Int) -> Int {
+    @MainActor func styleIndexAt(_ position: Int) -> Int {
         return Int(cb.styleAt(position))
     }
     
     // Translation of: Document::LengthNoExcept (Document.h:520)
-    func lengthNoExcept() -> Int {
-        return cb.length()
+    @MainActor func lengthNoExcept() -> Int {
+        return cb.length
     }
     
     // Translation of: Document::GetEndStyled (Document.h:548)
@@ -80,7 +80,7 @@ class ScintillaDocument {
     
     // MARK: - BraceMatch (Document.cxx:3010-3041)
     // EXACT TRANSLATION of Document::BraceMatch
-    func braceMatch(_ position: Int, _ maxReStyle: Int = 0, _ startPos: Int = 0, _ useStartPos: Bool = false) -> Int {
+    @MainActor func braceMatch(_ position: Int, _ maxReStyle: Int = 0, _ startPos: Int = 0, _ useStartPos: Bool = false) -> Int {
         // Line 3011-3012: Get character and find opposite
         let chBrace = charAt(position)
         guard let chSeek = braceOpposite(chBrace) else {

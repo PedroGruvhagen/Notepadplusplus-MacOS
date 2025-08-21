@@ -85,13 +85,15 @@ class Document: ObservableObject, Identifiable {
         }
         
         // Start file monitoring if we have a file path
-        if let filePath = filePath {
+        if filePath != nil {
             startFileMonitoring()
         }
     }
     
     deinit {
-        stopFileMonitoring()
+        Task { @MainActor in
+            stopFileMonitoring()
+        }
     }
     
     /// Start monitoring the file for external changes

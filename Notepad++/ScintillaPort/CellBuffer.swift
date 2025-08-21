@@ -55,7 +55,7 @@ class CellBuffer {
     private var style: Data = Data()    // Simplified: using Data for style bytes
     private var readOnly: Bool = false
     private var utf8Substance: Bool = true
-    private var utf8LineEnds: LineEndType = .unix
+    private var utf8LineEnds: EOLType = .unix
     
     private var collectingUndo: Bool = true
     private var undoHistory: [Action] = []
@@ -164,6 +164,23 @@ class CellBuffer {
             return 0
         }
         return style[position]
+    }
+    
+    /// Set style at position
+    func setStyleAt(_ position: Int, _ styleValue: UInt8) {
+        guard hasStyles && position >= 0 && position < style.count else { return }
+        style[position] = styleValue
+    }
+    
+    /// Set text content
+    func setText(_ newText: String) {
+        substance = newText
+        if hasStyles {
+            style = Data(repeating: 0, count: newText.count)
+        }
+        // Reset line starts
+        lineStarts = [0]
+        updateLineStarts(from: 0, delta: newText.count, text: newText)
     }
     
     // MARK: - Modification (Translation of insert/delete methods)
