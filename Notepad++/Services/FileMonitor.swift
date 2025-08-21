@@ -203,12 +203,4 @@ class FileMonitor {
 }
 
 // MARK: - Document Extension for File Monitoring
-
-extension Document {
-    /// Handle external file deletion - matches Buffer notification behavior
-    func handleExternalDeletion() {
-        // In Notepad++, this triggers a status bar update
-        // We don't prompt the user, just update status
-        print("File has been deleted: \(fileName)")
-    }
-}
+// Removed - handleExternalDeletion is now in Document.swift

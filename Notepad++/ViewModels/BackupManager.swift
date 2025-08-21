@@ -189,7 +189,7 @@ class BackupManager: ObservableObject {
                         }
                         
                         // Restore document properties
-                        document.fileName = tabData["fileName"] as? String ?? "Untitled"
+                        // fileName is read-only in Buffer translation, set via fileURL
                         document.isModified = tabData["isModified"] as? Bool ?? false
                         
                         // Restore position data
