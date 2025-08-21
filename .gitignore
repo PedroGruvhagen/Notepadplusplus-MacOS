@@ -94,6 +94,13 @@ fastlane/test_output
 
 iOSInjectionProject/
 
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
 # macOS
 .DS_Store
 .AppleDouble
