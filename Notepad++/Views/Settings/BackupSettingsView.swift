@@ -10,6 +10,7 @@ import SwiftUI
 struct BackupSettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @State private var selectedBackupFolder: String = ""
+    private let featureGates = FeatureGates.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -94,15 +95,26 @@ struct BackupSettingsView: View {
             // Session Snapshot Settings
             GroupBox("Session Snapshot & Periodic Backup") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Toggle("Enable session snapshot and periodic backup", isOn: $settings.enableSessionSnapshot)
-                        .help("Periodically save the current session and create backups")
+                    HStack {
+                        Toggle("Enable session snapshot and periodic backup", isOn: $settings.enableSessionSnapshot)
+                            .disabled(!featureGates.getStatus("enableSessionSnapshot").isEnabled)
+                            .help(featureGates.getStatus("enableSessionSnapshot").helpText ?? "Periodically save the current session and create backups")
+                        if let badge = featureGates.getStatus("enableSessionSnapshot").badgeText {
+                            Text(badge)
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.orange.opacity(0.2))
+                                .cornerRadius(4)
+                        }
+                    }
                     
                     HStack {
                         Text("Snapshot interval:")
                         TextField("", value: $settings.snapshotInterval, format: .number)
                             .frame(width: 60)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .disabled(!settings.enableSessionSnapshot)
+                            .disabled(!featureGates.getStatus("snapshotInterval").isEnabled)
                         Text("seconds")
                         
                         Spacer()
