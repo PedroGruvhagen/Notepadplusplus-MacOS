@@ -32,9 +32,10 @@ class BackupManager: ObservableObject {
     }
     
     @objc private func appWillTerminate() {
-        Task { @MainActor in
-            saveSessionSnapshot()
-        }
+        // Don't save session - app should start fresh every time
+        // Task { @MainActor in
+        //     saveSessionSnapshot()
+        // }
     }
     
     private func observeSettingsChanges() {
@@ -68,15 +69,15 @@ class BackupManager: ObservableObject {
             }
         }
         
-        // Setup session snapshot timer
-        if settings.enableSessionSnapshot {
-            let interval = TimeInterval(settings.snapshotInterval) // Already in seconds
-            sessionSnapshotTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
-                Task { @MainActor in
-                    self.saveSessionSnapshot()
-                }
-            }
-        }
+        // Don't setup session snapshot timer - app should start fresh every time
+        // if settings.enableSessionSnapshot {
+        //     let interval = TimeInterval(settings.snapshotInterval) // Already in seconds
+        //     sessionSnapshotTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
+        //         Task { @MainActor in
+        //             self.saveSessionSnapshot()
+        //         }
+        //     }
+        // }
     }
     
     @MainActor
