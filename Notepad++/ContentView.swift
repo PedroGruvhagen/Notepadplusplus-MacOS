@@ -165,6 +165,77 @@ struct ContentView: View {
                 documentManager.closeOtherTabs()
             }
         }
+        
+        // Copy/Paste/Cut handlers
+        NotificationCenter.default.addObserver(
+            forName: .copy,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Use the system's performTextFinderAction to handle copy
+            if let firstResponder = NSApp.keyWindow?.firstResponder,
+               firstResponder.responds(to: #selector(NSText.copy(_:))) {
+                firstResponder.perform(#selector(NSText.copy(_:)), with: nil)
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .paste,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Use the system's performTextFinderAction to handle paste
+            if let firstResponder = NSApp.keyWindow?.firstResponder,
+               firstResponder.responds(to: #selector(NSText.paste(_:))) {
+                firstResponder.perform(#selector(NSText.paste(_:)), with: nil)
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .cut,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Use the system's performTextFinderAction to handle cut
+            if let firstResponder = NSApp.keyWindow?.firstResponder,
+               firstResponder.responds(to: #selector(NSText.cut(_:))) {
+                firstResponder.perform(#selector(NSText.cut(_:)), with: nil)
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .selectAll,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Use the system's performTextFinderAction to handle select all
+            if let firstResponder = NSApp.keyWindow?.firstResponder,
+               firstResponder.responds(to: #selector(NSText.selectAll(_:))) {
+                firstResponder.perform(#selector(NSText.selectAll(_:)), with: nil)
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .undo,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Use the system's undo manager
+            if let undoManager = NSApp.keyWindow?.firstResponder?.undoManager {
+                undoManager.undo()
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .redo,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Use the system's undo manager
+            if let undoManager = NSApp.keyWindow?.firstResponder?.undoManager {
+                undoManager.redo()
+            }
+        }
     }
 }
 
