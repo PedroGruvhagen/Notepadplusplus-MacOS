@@ -38,7 +38,9 @@ class FileMonitor {
     }
     
     deinit {
-        stop()
+        Task { @MainActor in
+            stop()
+        }
     }
     
     /// Translation of Buffer::checkFileState() from Buffer.cpp line 350

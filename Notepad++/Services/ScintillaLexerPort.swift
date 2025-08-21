@@ -29,7 +29,17 @@ enum SCE_P {
     static let DECORATOR = 15
 }
 
-class ScintillaLexerPort {
+struct ScintillaLexerPort {
+    
+    // Helper function to highlight pattern
+    static func highlightPattern(_ pattern: String, in text: String, textStorage: NSTextStorage, color: NSColor) {
+        let range = NSRange(location: 0, length: text.count)
+        let regex = try? NSRegularExpression(pattern: "\\b\(NSRegularExpression.escapedPattern(for: pattern))\\b", options: [])
+        let matches = regex?.matches(in: text, options: [], range: range) ?? []
+        for match in matches {
+            textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
+        }
+    }
     
     // Direct port of ScintillaEditView::setPythonLexer()
     static func applyPythonHighlighting(to textStorage: NSTextStorage, text: String, keywords0: [String], keywords1: [String]) {
@@ -134,6 +144,7 @@ class ScintillaLexerPort {
         }
     }
     
+    
     // Port for other languages would go here following same pattern from Notepad++
     /// Translation of ScintillaEditView::setJsLexer() from ScintillaEditView.cpp line 1217-1298
     static func applyJavaScriptHighlighting(to textStorage: NSTextStorage, text: String, keywords: [String]) {
@@ -147,7 +158,7 @@ class ScintillaLexerPort {
         textStorage.removeAttribute(.font, range: fullRange)
         
         // Set default attributes
-        let defaultFont = AppSettings.shared.editorFont
+        let defaultFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         textStorage.addAttribute(.font, value: defaultFont, range: fullRange)
         textStorage.addAttribute(.foregroundColor, value: NSColor.textColor, range: fullRange)
         
@@ -162,7 +173,7 @@ class ScintillaLexerPort {
                           "typeof", "var", "void", "while", "with", "yield"]
         
         for keyword in jsKeywords {
-            highlightPattern(keyword, in: text, textStorage: textStorage, 
+            ScintillaLexerPort.highlightPattern(keyword, in: text, textStorage: textStorage, 
                            color: NSColor(red: 0, green: 0, blue: 1, alpha: 1)) // Blue for keywords
         }
         
@@ -250,7 +261,7 @@ class ScintillaLexerPort {
         textStorage.removeAttribute(.font, range: fullRange)
         
         // Set default attributes
-        let defaultFont = AppSettings.shared.editorFont
+        let defaultFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         textStorage.addAttribute(.font, value: defaultFont, range: fullRange)
         textStorage.addAttribute(.foregroundColor, value: NSColor.textColor, range: fullRange)
         
@@ -269,7 +280,7 @@ class ScintillaLexerPort {
                           "while", "xor", "xor_eq"]
         
         for keyword in cppKeywords {
-            highlightPattern(keyword, in: text, textStorage: textStorage,
+            ScintillaLexerPort.highlightPattern(keyword, in: text, textStorage: textStorage,
                            color: NSColor(red: 0, green: 0, blue: 1, alpha: 1)) // Blue for keywords
         }
         
@@ -280,7 +291,7 @@ class ScintillaLexerPort {
                        "stack", "array", "unique_ptr", "shared_ptr", "weak_ptr"]
         
         for type in cppTypes {
-            highlightPattern(type, in: text, textStorage: textStorage,
+            ScintillaLexerPort.highlightPattern(type, in: text, textStorage: textStorage,
                            color: NSColor(red: 0, green: 0.5, blue: 0.5, alpha: 1)) // Teal for types
         }
         
