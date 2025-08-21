@@ -50,7 +50,12 @@ class Document: ObservableObject, Identifiable {
     @Published var documentVisibleRect: NSRect = .zero
     
     // File monitoring for external changes
-    private var fileMonitor: FileMonitor?
+    private var fileMonitor: FileMonitor? {
+        willSet {
+            // Ensure old monitor is stopped before setting new one
+            fileMonitor?.stop()
+        }
+    }
     
     private var lastSavedContent: String
     
@@ -91,8 +96,9 @@ class Document: ObservableObject, Identifiable {
     }
     
     deinit {
-        // FileMonitor cleanup happens automatically when fileMonitor is deallocated
-        // No need for explicit Task here as FileMonitor.deinit handles cleanup
+        // Explicitly stop file monitoring to prevent crashes
+        fileMonitor?.stop()
+        fileMonitor = nil
     }
     
     /// Start monitoring the file for external changes
