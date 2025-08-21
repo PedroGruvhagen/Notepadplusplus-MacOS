@@ -9,14 +9,30 @@ import SwiftUI
 
 struct AutoCompletionSettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
+    private let featureGates = FeatureGates.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            // Feature not implemented notice
+            if !featureGates.isImplemented("enableAutoCompletion") {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.orange)
+                    Text("Auto-completion features are not yet implemented")
+                        .font(.caption)
+                    Spacer()
+                }
+                .padding(8)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(6)
+            }
+            
             // Auto-Completion Settings
             GroupBox("Auto-Completion") {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Enable auto-completion", isOn: $settings.enableAutoCompletion)
-                        .help("Show completion suggestions while typing")
+                        .disabled(!featureGates.isImplemented("enableAutoCompletion"))
+                        .help(featureGates.getStatus("enableAutoCompletion").helpText ?? "Show completion suggestions while typing")
                     
                     HStack {
                         Text("Trigger from character:")
