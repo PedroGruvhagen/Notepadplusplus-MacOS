@@ -44,7 +44,7 @@ class LexerCPP {
     // Translation of LexerCPP::Lex (line 788)
     func lex(startPos: Int, length: Int, initStyle: Int, text: String) -> [Int] {
         let styler = LexAccessor(text: text)
-        var styles = Array(repeating: SCE_C.DEFAULT, count: text.count)
+        let styles = Array(repeating: SCE_C.DEFAULT, count: text.count)  // TODO: Populate in full implementation
         
         // Translation of line 807-817: Initialize state variables
         var chPrevNonWhite: Character = " "
