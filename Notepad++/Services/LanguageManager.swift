@@ -56,7 +56,37 @@ class LanguageManager: ObservableObject {
     
     private func loadAllLanguages() {
         // Load all generated languages from AllLanguages struct
-        availableLanguages = AllLanguages.definitions
+        // Convert LanguageDefinitions to NotepadPlusLanguages
+        availableLanguages = AllLanguages.definitions.map { langDef in
+            // Create empty keywords for now - will be populated from XML later
+            let emptyKeywords = NotepadPlusLanguage.LanguageKeywords(
+                instre1: nil,
+                instre2: nil,
+                type1: nil,
+                type2: nil,
+                type3: nil,
+                type4: nil,
+                type5: nil,
+                type6: nil,
+                substyle1: nil,
+                substyle2: nil,
+                substyle3: nil,
+                substyle4: nil,
+                substyle5: nil,
+                substyle6: nil,
+                substyle7: nil,
+                substyle8: nil
+            )
+            
+            return NotepadPlusLanguage(
+                name: langDef.name,
+                extensions: langDef.extensions,
+                commentLine: langDef.commentLine,
+                commentStart: langDef.commentStart,
+                commentEnd: langDef.commentEnd,
+                keywords: emptyKeywords
+            )
+        }
         
         // Build extension map for fast lookup
         for language in availableLanguages {

@@ -27,6 +27,11 @@ class ScintillaDocument {
         self.cb = CellBuffer()
     }
     
+    // Helper method to set text content
+    @MainActor func setText(_ text: String) {
+        cb.setText(text)
+    }
+    
     // MARK: - Direct translations from Document.cxx
     
     // Translation of: Document::CharAt (Document.h:475)
