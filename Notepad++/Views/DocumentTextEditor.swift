@@ -75,6 +75,10 @@ struct DocumentTextEditor: NSViewRepresentable {
         // This is the Swift equivalent of SCI_SETDOCPOINTER
         document.activate(in: textView)
         
+        // Force layout update to ensure content is displayed
+        textView.layoutManager?.ensureLayout(for: textView.textContainer!)
+        textView.needsDisplay = true
+        
         // Configure word wrap
         if let textContainer = textView.textContainer {
             if wordWrap {
@@ -171,6 +175,10 @@ struct DocumentTextEditor: NSViewRepresentable {
             
             // Activate new document (swaps text storage) and restore position when switching tabs
             document.activate(in: textView, restorePosition: true)
+            
+            // Force layout update to ensure content is displayed
+            textView.layoutManager?.ensureLayout(for: textView.textContainer!)
+            textView.needsDisplay = true
             
             // Update coordinator reference
             context.coordinator.document = document
