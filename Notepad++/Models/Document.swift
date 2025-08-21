@@ -49,6 +49,9 @@ class Document: ObservableObject, Identifiable {
     @Published var documentSelectedRange: NSRange = NSRange(location: 0, length: 0)
     @Published var documentVisibleRect: NSRect = .zero
     
+    // File monitoring for external changes
+    private var fileMonitor: FileMonitor?
+    
     private var lastSavedContent: String
     
     init(content: String = "", filePath: URL? = nil) {
@@ -80,6 +83,30 @@ class Document: ObservableObject, Identifiable {
             self.fileExtension = nil
             self.language = nil
         }
+        
+        // Start file monitoring if we have a file path
+        if let filePath = filePath {
+            startFileMonitoring()
+        }
+    }
+    
+    deinit {
+        stopFileMonitoring()
+    }
+    
+    /// Start monitoring the file for external changes
+    private func startFileMonitoring() {
+        guard let fileURL = fileURL else { return }
+        
+        stopFileMonitoring() // Stop any existing monitoring
+        fileMonitor = FileMonitor(fileURL: fileURL, document: self)
+        fileMonitor?.start()
+    }
+    
+    /// Stop monitoring the file
+    private func stopFileMonitoring() {
+        fileMonitor?.stop()
+        fileMonitor = nil
     }
     
     func updateContent(_ newContent: String) {
@@ -100,6 +127,23 @@ class Document: ObservableObject, Identifiable {
         if language == nil && fileURL == nil {
             detectLanguageFromContent()
         }
+    }
+    
+    /// Force update content for external file reloads
+    /// Used by FileMonitor when reloading externally modified files
+    func forceUpdateContent(_ newContent: String, encoding: FileEncoding, eol: EOLType) {
+        // Bypass protection logic - this is for external reloads
+        content = newContent
+        self.encoding = encoding
+        self.eolType = eol
+        
+        // Update NSTextStorage
+        textStorage.beginEditing()
+        textStorage.replaceCharacters(in: NSRange(location: 0, length: textStorage.length), with: newContent)
+        textStorage.endEditing()
+        
+        // Don't update isModified - preserve whatever state it was in
+        // This matches original Notepad++ behavior
     }
     
     private func detectLanguageFromContent() {
@@ -131,6 +175,11 @@ class Document: ObservableObject, Identifiable {
     func markAsSaved() {
         lastSavedContent = content
         isModified = false
+        
+        // Restart file monitoring after save to update modification date
+        if fileMonitor != nil {
+            startFileMonitoring()
+        }
     }
     
     func save() async throws {
@@ -152,6 +201,7 @@ class Document: ObservableObject, Identifiable {
     }
     
     func saveAs(to url: URL) async throws {
+        let oldURL = fileURL
         fileURL = url
         fileName = url.lastPathComponent
         fileExtension = url.pathExtension.isEmpty ? nil : url.pathExtension
@@ -166,6 +216,16 @@ class Document: ObservableObject, Identifiable {
                 language = nil
             }
         }
+        
+        // Update file monitoring if URL changed
+        if oldURL != url {
+            if let monitor = fileMonitor {
+                monitor.updateFileURL(url)
+            } else {
+                startFileMonitoring()
+            }
+        }
+        
         try await save()
     }
     
