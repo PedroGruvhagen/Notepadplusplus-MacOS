@@ -10,37 +10,96 @@ import Foundation
 import SwiftUI
 
 // Translation of: struct LargeFileRestriction final
-// Original location: Parameters.h line 828-841
+// Original location: Parameters.h lines 835-848
 struct LargeFileRestriction: Codable {
-    // Line 830: int64_t _largeFileSizeDefInByte = NPP_STYLING_FILESIZE_LIMIT_DEFAULT;
-    var fileSizeMB: Int = 200 // Default 200MB
-    
-    // Line 831: bool _isEnabled = true;
-    var isEnabled: Bool = true
-    
-    // Line 833: bool _deactivateWordWrap = true;
-    var deactivateWordWrap: Bool = true
-    
-    // Line 835: bool _allowBraceMatch = false;
-    var allowBraceMatch: Bool = false
-    
-    // Line 836: bool _allowAutoCompletion = false;
-    var allowAutoCompletion: Bool = false
-    
-    // Line 837: bool _allowSmartHilite = false;
-    var allowSmartHilite: Bool = false
-    
-    // Line 838: bool _allowClickableLink = false;
-    var allowClickableLink: Bool = false
-    
-    // Line 840: bool _suppress2GBWarning = false;
-    var suppress2GBWarning: Bool = false
+    // Line 837: int64_t _largeFileSizeDefInByte = NPP_STYLING_FILESIZE_LIMIT_DEFAULT;
+    var _largeFileSizeDefInByte: Int64 = 209715200 // 200MB in bytes (NPP_STYLING_FILESIZE_LIMIT_DEFAULT)
+
+    // Line 838: bool _isEnabled = true;
+    var _isEnabled: Bool = true
+
+    // Line 840: bool _deactivateWordWrap = true;
+    var _deactivateWordWrap: Bool = true
+
+    // Line 842: bool _allowBraceMatch = false;
+    var _allowBraceMatch: Bool = false
+
+    // Line 843: bool _allowAutoCompletion = false;
+    var _allowAutoCompletion: Bool = false
+
+    // Line 844: bool _allowSmartHilite = false;
+    var _allowSmartHilite: Bool = false
+
+    // Line 845: bool _allowClickableLink = false;
+    var _allowClickableLink: Bool = false
+
+    // Line 847: bool _suppress2GBWarning = false;
+    var _suppress2GBWarning: Bool = false
+
+    // Convenience computed property for UI (not in C++ original)
+    var fileSizeMB: Int {
+        get { Int(_largeFileSizeDefInByte / (1024 * 1024)) }
+        set { _largeFileSizeDefInByte = Int64(newValue * 1024 * 1024) }
+    }
 }
 
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
-    
+
     private let defaults = UserDefaults.standard
+
+    // MARK: - Complete NppGUI Translation
+    // The proper way would be to use NppGUI struct entirely
+    // For now maintaining backwards compatibility with existing @AppStorage properties
+    // TODO: Migrate completely to NppGUI structure
+
+    // Reference to complete NppGUI configuration
+    var nppGUI: NppGUI {
+        get {
+            if let data = defaults.data(forKey: "nppGUI"),
+               let gui = try? JSONDecoder().decode(NppGUI.self, from: data) {
+                return gui
+            }
+            return NppGUI() // Return default
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: "nppGUI")
+            }
+        }
+    }
+
+    // Reference to MatchedPairConf configuration
+    var matchedPairConf: MatchedPairConf {
+        get {
+            if let data = defaults.data(forKey: "matchedPairConf"),
+               let conf = try? JSONDecoder().decode(MatchedPairConf.self, from: data) {
+                return conf
+            }
+            return MatchedPairConf() // Return default
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: "matchedPairConf")
+            }
+        }
+    }
+
+    // Reference to DarkModeConf configuration
+    var darkModeConf: DarkModeConf {
+        get {
+            if let data = defaults.data(forKey: "darkModeConf"),
+               let conf = try? JSONDecoder().decode(DarkModeConf.self, from: data) {
+                return conf
+            }
+            return DarkModeConf() // Return default
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: "darkModeConf")
+            }
+        }
+    }
     
     // MARK: - General Settings
     @AppStorage("showToolbar") var showToolbar: Bool = true
@@ -120,8 +179,8 @@ class AppSettings: ObservableObject {
     @AppStorage("maxRecentFiles") var maxRecentFiles: Int = 10
     @AppStorage("showRecentFilesInSubmenu") var showRecentFilesInSubmenu: Bool = false
     
-    // MARK: - Performance Settings (Translation of LargeFileRestriction)
-    // This is stored as a single JSON object to match original structure
+    // MARK: - Performance Settings (Translation of LargeFileRestriction from Parameters.h line 1007)
+    // This is stored as a single JSON object to match original NppGUI._largeFileRestriction structure
     var largeFileRestriction: LargeFileRestriction {
         get {
             if let data = defaults.data(forKey: "largeFileRestriction"),
@@ -133,6 +192,7 @@ class AppSettings: ObservableObject {
         set {
             if let data = try? JSONEncoder().encode(newValue) {
                 defaults.set(data, forKey: "largeFileRestriction")
+                objectWillChange.send()
             }
         }
     }
