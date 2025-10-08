@@ -115,34 +115,76 @@ struct AdvancedOptions: Codable {
     var _enableWindowsMode: Bool = false
 }
 
-// MARK: - NppDarkMode Support Types
+// MARK: - NppDarkMode Namespace Types (Translation of NppDarkMode.h lines 67-76 and 28-42)
 
-// Simplified version - in full implementation would need to translate NppDarkMode namespace
+// Translation of enum ColorTone from NppDarkMode.h lines 67-76
 enum ColorTone: Int, Codable {
-    case blackTone = 0
-    case redTone = 1
-    case greenTone = 2
-    case blueTone = 3
-    case purpleTone = 4
-    case cyanTone = 5
-    case oliveTone = 6
-    case customizedTone = 32
+    case blackTone = 0      // Line 68
+    case redTone = 1        // Line 69
+    case greenTone = 2      // Line 70
+    case blueTone = 3       // Line 71
+    case purpleTone = 4     // Line 72
+    case cyanTone = 5       // Line 73
+    case oliveTone = 6      // Line 74
+    case customizedTone = 32 // Line 75
 }
 
+// Translation of struct Colors from NppDarkMode.h lines 28-42
+// Default values from NppDarkMode.cpp lines 193-206 (darkColors constant)
 struct DarkModeColors: Codable {
-    var pureBackground: UInt32 = 0x202020
-    var softerBackground: UInt32 = 0x2D2D2D
-    var hotBackground: UInt32 = 0x3C3C3C
-    var edge: UInt32 = 0x404040
-    var text: UInt32 = 0xE8E8E8
-    var darkerText: UInt32 = 0xC0C0C0
-    var disabledText: UInt32 = 0x808080
-    var linkText: UInt32 = 0x4CC2FF
-    var errorBackground: UInt32 = 0x8B0000
+    // Line 30: COLORREF background = 0;
+    // Default: HEXRGB(0x202020) from NppDarkMode.cpp:194
+    var background: UInt32 = 0x202020
 
-    // Default colors matching NppDarkMode::getDarkModeDefaultColors()
+    // Line 31: COLORREF softerBackground = 0; // ctrl background color
+    // Default: HEXRGB(0x383838) from NppDarkMode.cpp:195
+    var softerBackground: UInt32 = 0x383838
+
+    // Line 32: COLORREF hotBackground = 0;
+    // Default: HEXRGB(0x454545) from NppDarkMode.cpp:196
+    var hotBackground: UInt32 = 0x454545
+
+    // Line 33: COLORREF pureBackground = 0; // dlg background color
+    // Default: HEXRGB(0x202020) from NppDarkMode.cpp:197
+    var pureBackground: UInt32 = 0x202020
+
+    // Line 34: COLORREF errorBackground = 0;
+    // Default: HEXRGB(0xB00000) from NppDarkMode.cpp:198
+    var errorBackground: UInt32 = 0xB00000
+
+    // Line 35: COLORREF text = 0;
+    // Default: HEXRGB(0xE0E0E0) from NppDarkMode.cpp:199
+    var text: UInt32 = 0xE0E0E0
+
+    // Line 36: COLORREF darkerText = 0;
+    // Default: HEXRGB(0xC0C0C0) from NppDarkMode.cpp:200
+    var darkerText: UInt32 = 0xC0C0C0
+
+    // Line 37: COLORREF disabledText = 0;
+    // Default: HEXRGB(0x808080) from NppDarkMode.cpp:201
+    var disabledText: UInt32 = 0x808080
+
+    // Line 38: COLORREF linkText = 0;
+    // Default: HEXRGB(0xFFFF00) from NppDarkMode.cpp:202
+    var linkText: UInt32 = 0xFFFF00
+
+    // Line 39: COLORREF edge = 0;
+    // Default: HEXRGB(0x646464) from NppDarkMode.cpp:203
+    var edge: UInt32 = 0x646464
+
+    // Line 40: COLORREF hotEdge = 0;
+    // Default: HEXRGB(0x9B9B9B) from NppDarkMode.cpp:204
+    var hotEdge: UInt32 = 0x9B9B9B
+
+    // Line 41: COLORREF disabledEdge = 0;
+    // Default: HEXRGB(0x484848) from NppDarkMode.cpp:205
+    var disabledEdge: UInt32 = 0x484848
+
+    // MARK: - Initialization
+
+    // Default constructor matches getDarkModeDefaultColors(blackTone) from NppDarkMode.cpp:845-872
     init() {
-        // All initialized with defaults above
+        // All properties initialized with darkColors defaults above
     }
 }
 
