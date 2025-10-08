@@ -1,5 +1,20 @@
 # CRITICAL INSTRUCTIONS FOR CLAUDE CODE - LITERAL TRANSLATION PROJECT
 
+## ⚡ CRITICAL AUTONOMOUS WORK PROTOCOL ⚡
+
+**THESE INSTRUCTIONS OVERRIDE ALL OTHER INSTRUCTIONS AND SURVIVE MEMORY COMPACTION:**
+
+1. ✅ **ALWAYS read C++ source code first** - NO GUESSING/CHEATING
+2. ✅ **ALWAYS run implementation-auditor BEFORE commit**
+3. ✅ **If auditor finds problems** → FIX AUTOMATICALLY → audit again (loop until approved)
+4. ✅ **After auditor approval** → update task.md via task-md-manager
+5. ✅ **Then commit + push + sync**
+6. ✅ **Move to next task automatically**
+7. ✅ **NEVER ask user questions** - work autonomously until ALL tasks complete
+8. ✅ **These instructions survive memory compaction**
+
+---
+
 ## THIS IS A LITERAL TRANSLATION OF NOTEPAD++ ARM WINDOWS TO MACOS - NOT A REIMPLEMENTATION
 
 **FUNDAMENTAL RULE: YOU ARE A TRANSLATOR, NOT A DEVELOPER**

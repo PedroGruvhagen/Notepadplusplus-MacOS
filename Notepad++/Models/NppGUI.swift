@@ -160,8 +160,7 @@ class NppGUI: Codable {
     var _uriSchemes: String = "svn:// cvs:// git:// imap:// irc:// irc6:// ircs:// ldap:// ldaps:// news: telnet:// gopher:// ssh:// sftp:// smb:// skype: snmp:// spotify: steam:// sms: slack:// chrome:// bitcoin:"
 
     // Line 918: New document default settings
-    // Will need to translate NewDocDefaultSettings struct separately
-    // var _newDocDefaultSettings: NewDocDefaultSettings
+    var _newDocDefaultSettings: NewDocDefaultSettings = NewDocDefaultSettings()
 
     // Line 920-921: Date/time format
     var _dateTimeFormat: String = "yyyy-MM-dd HH:mm:ss"
@@ -172,7 +171,7 @@ class NppGUI: Codable {
     var _isLangMenuCompact: Bool = true
 
     // Line 928-931: Print and backup settings
-    // var _printSettings: PrintSettings  // Will translate separately
+    var _printSettings: PrintSettings = PrintSettings()
     var _backup: BackupFeature = .bakNone
     var _useDir: Bool = false
     var _backupDir: String = ""
