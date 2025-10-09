@@ -168,8 +168,8 @@ class AppSettings: ObservableObject {
     @AppStorage("snapshotInterval") var snapshotInterval: Int = 7 // seconds
     
     // MARK: - Auto-Completion Settings
-    @AppStorage("enableAutoCompletion") var enableAutoCompletion: Bool = false  // DISABLED - it's interfering with normal typing
-    @AppStorage("autoCompletionMinChars") var autoCompletionMinChars: Int = 3
+    @AppStorage("enableAutoCompletion") var enableAutoCompletion: Bool = false  // Default: false (user can enable in settings)
+    @AppStorage("autoCompletionMinChars") var autoCompletionMinChars: Int = 1  // Matches C++ default (line 192 in NppGUI.swift)
     @AppStorage("showFunctionParameters") var showFunctionParameters: Bool = false
     @AppStorage("autoCompletionIgnoreNumbers") var autoCompletionIgnoreNumbers: Bool = true
     @AppStorage("autoInsertParentheses") var autoInsertParentheses: Bool = false

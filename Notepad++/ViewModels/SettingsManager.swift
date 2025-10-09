@@ -154,10 +154,10 @@ class SettingsManager: ObservableObject {
     }
     
     private func resetAutoCompletionSettings() {
-        settings.enableAutoCompletion = true
-        settings.autoCompletionMinChars = 1
-        settings.showFunctionParameters = true
-        settings.autoCompletionIgnoreNumbers = true
+        settings.enableAutoCompletion = false  // Default: disabled (user can enable)
+        settings.autoCompletionMinChars = 1    // Matches C++ default
+        settings.showFunctionParameters = false
+        settings.autoCompletionIgnoreNumbers = true  // Matches C++ default
         settings.autoInsertParentheses = false
         settings.autoInsertBrackets = false
         settings.autoInsertQuotes = false
