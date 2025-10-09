@@ -162,6 +162,34 @@ When making commits, do not include the Claude Code attribution footer:
 
 These attributions look unprofessional in the commit history and should be avoided.
 
+## RELEASE MANAGEMENT - DMG FILES
+
+**IMPORTANT: Release artifacts must be organized properly**
+
+### Release Folder Structure:
+- **ALL DMG files** must be placed in the `releases/` folder
+- The `releases/` folder and `*.dmg` files are already in `.gitignore`
+- Never commit DMG files to the repository
+- DMG files are uploaded to GitHub releases only
+
+### Creating a Release:
+1. Build the release version: `xcodebuild -configuration Release`
+2. Create DMG: `hdiutil create -volname "Notepad++" -srcfolder path/to/app -ov -format UDZO releases/Notepad++_X.X.X.dmg`
+3. Commit code changes (excluding DMG)
+4. Create and push tag: `git tag -a vX.X.X -m "message" && git push origin vX.X.X`
+5. Create GitHub release: `gh release create vX.X.X releases/Notepad++_X.X.X.dmg --title "..." --notes "..."`
+
+### File Organization:
+```
+Notepad++/
+├── releases/              # (gitignored)
+│   ├── Notepad++_0.3.6.dmg
+│   └── Notepad++_X.X.X.dmg
+└── .gitignore            # Contains: releases/ and *.dmg
+```
+
+**NEVER add individual DMG files to .gitignore - the folder pattern handles all releases**
+
 ## MCP SERVERS - MANDATORY USAGE GUIDELINES
 
 **YOU MUST ACTIVELY USE ALL AVAILABLE MCP SERVERS TO MAXIMIZE EFFECTIVENESS**
