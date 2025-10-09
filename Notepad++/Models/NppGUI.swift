@@ -57,7 +57,7 @@ enum MultiInstSetting: Int, Codable {
 
 // MARK: - NppGUI struct (Translation of Parameters.h line 843-1008)
 
-class NppGUI: Codable {
+struct NppGUI: Codable {
 
     // Line 845: TbIconInfo _tbIconInfo
     // Simplified - we'll expand this when we translate TbIconInfo
@@ -113,7 +113,7 @@ class NppGUI: Codable {
     var _doTaskList: Bool = true
 
     // Line 882-883: Indentation and smart highlighting
-    var _maintainIndent: AutoIndentMode = .autoIndentAdvanced
+    var _maintainIndent: AutoIndentMode = .autoIndent_advanced
     var _enableSmartHilite: Bool = true
 
     // Line 885-888: Smart highlight options
@@ -134,8 +134,8 @@ class NppGUI: Codable {
 
     // Line 897-900: Style and delimiter settings
     var _styleMRU: Bool = true
-    var _leftmostDelimiter: Character = "("
-    var _rightmostDelimiter: Character = ")"
+    var _leftmostDelimiter: String = "("
+    var _rightmostDelimiter: String = ")"
     var _delimiterSelectionOnEntireDocument: Bool = false
 
     // Line 901-912: Find/Replace dialog settings
@@ -294,7 +294,7 @@ class NppGUI: Codable {
     // MARK: - Methods (Translation of line 923-924)
 
     // Line 923: void setTabReplacedBySpace(bool b)
-    func setTabReplacedBySpace(_ b: Bool) {
+    mutating func setTabReplacedBySpace(_ b: Bool) {
         _tabReplacedBySpace = b
     }
 

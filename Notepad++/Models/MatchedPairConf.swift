@@ -9,11 +9,17 @@
 
 import Foundation
 
+// Helper struct for Codable character pairs
+struct CharacterPair: Codable {
+    let first: String
+    let second: String
+}
+
 // Translation of class MatchedPairConf final from Parameters.h line 758-773
-class MatchedPairConf: Codable {
+struct MatchedPairConf: Codable {
 
     // Line 766: std::vector<std::pair<char, char>> _matchedPairs;
-    var _matchedPairs: [(Character, Character)] = []
+    var _matchedPairs: [CharacterPair] = []
 
     // Line 767: bool _doHtmlXmlTag = false;
     var _doHtmlXmlTag: Bool = false
