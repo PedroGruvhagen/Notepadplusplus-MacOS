@@ -64,7 +64,13 @@ struct FeatureGates {
         "autoSaveInterval",
         
         // File monitoring
-        "detectFileChanges"
+        "detectFileChanges",
+
+        // Auto-completion (FULLY IMPLEMENTED - translated from C++ AutoCompletion.cpp)
+        "enableAutoCompletion",
+        "autoCompletionMinChars",
+        "showFunctionParameters",
+        "autoCompletionIgnoreNumbers"
     ])
     
     // MARK: - Partially Implemented Features
@@ -90,17 +96,14 @@ struct FeatureGates {
         // Recent Files
         "maxRecentFiles",
         "showRecentFilesInSubmenu",
-        
-        // Auto-completion (settings exist but feature not implemented)
-        "enableAutoCompletion",
-        "autoCompletionMinChars",
+
+        // Auto-completion (advanced features not yet implemented)
         "autoCompletionMaxSuggestions",
         "autoCompleteOnEnter",
-        "showFunctionParameters",
         "insertFunctionParameters",
         "wordBasedSuggestions",
         "caseInsensitive",
-        
+
         // Search (advanced features)
         "searchHistorySize",
         "replaceHistorySize",
