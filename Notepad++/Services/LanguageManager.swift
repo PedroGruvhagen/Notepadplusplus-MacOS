@@ -50,104 +50,8 @@ class Lang {
     var name: String { _langName }
 }
 
-// Translation of LangType enum from Parameters.h
-enum LangType: Int {
-    case L_TEXT = 0
-    case L_PHP = 1
-    case L_C = 2
-    case L_CPP = 3
-    case L_CS = 4
-    case L_OBJC = 5
-    case L_JAVA = 6
-    case L_RC = 7
-    case L_HTML = 8
-    case L_XML = 9
-    case L_MAKEFILE = 10
-    case L_PASCAL = 11
-    case L_BATCH = 12
-    case L_INI = 13
-    case L_ASCII = 14
-    case L_USER = 15
-    case L_ASP = 16
-    case L_SQL = 17
-    case L_VB = 18
-    case L_JS = 19  // Renamed from L_JAVASCRIPT in modern versions
-    case L_CSS = 20
-    case L_PERL = 21
-    case L_PYTHON = 22
-    case L_LUA = 23
-    case L_TEX = 24
-    case L_FORTRAN = 25
-    case L_BASH = 26
-    case L_FLASH = 27
-    case L_NSIS = 28
-    case L_TCL = 29
-    case L_LISP = 30
-    case L_SCHEME = 31
-    case L_ASM = 32
-    case L_DIFF = 33
-    case L_PROPS = 34
-    case L_PS = 35
-    case L_RUBY = 36
-    case L_SMALLTALK = 37
-    case L_VHDL = 38
-    case L_KIX = 39
-    case L_AU3 = 40
-    case L_CAML = 41
-    case L_ADA = 42
-    case L_VERILOG = 43
-    case L_MATLAB = 44
-    case L_HASKELL = 45
-    case L_INNO = 46
-    case L_SEARCHRESULT = 47
-    case L_CMAKE = 48
-    case L_YAML = 49
-    case L_COBOL = 50
-    case L_GUI4CLI = 51
-    case L_D = 52
-    case L_POWERSHELL = 53
-    case L_R = 54
-    case L_JSP = 55
-    case L_COFFEESCRIPT = 56
-    case L_JSON = 57
-    case L_JAVASCRIPT = 58
-    case L_FORTRAN_77 = 59
-    case L_BAANC = 60
-    case L_SREC = 61
-    case L_IHEX = 62
-    case L_TEHEX = 63
-    case L_SWIFT = 64
-    case L_ASN1 = 65
-    case L_AVS = 66
-    case L_BLITZBASIC = 67
-    case L_PUREBASIC = 68
-    case L_FREEBASIC = 69
-    case L_CSOUND = 70
-    case L_ERLANG = 71
-    case L_ESCRIPT = 72
-    case L_FORTH = 73
-    case L_LATEX = 74
-    case L_MMIXAL = 75
-    case L_NIM = 76
-    case L_NNCRONTAB = 77
-    case L_OSCRIPT = 78
-    case L_REBOL = 79
-    case L_REGISTRY = 80
-    case L_RUST = 81
-    case L_SPICE = 82
-    case L_TXT2TAGS = 83
-    case L_VISUALPROLOG = 84
-    case L_TYPESCRIPT = 85
-    case L_JSON5 = 86
-    case L_MSSQL = 87
-    case L_GDSCRIPT = 88
-    case L_HOLLYWOOD = 89
-    case L_GOLANG = 90
-    case L_RAKU = 91
-    
-    // External languages
-    case L_EXTERNAL = 100
-}
+// LangType is defined in NewDocDefaultSettings.swift as the literal C++ translation
+// Using that complete definition instead of duplicating here
 
 // Translation of NppParameters language management from Parameters.cpp
 @MainActor
@@ -240,7 +144,7 @@ class LanguageManager {
             Lang(id: .L_JAVA, name: "Java", ext: "java", commentLine: "//", commentStart: "/*", commentEnd: "*/"),
             Lang(id: .L_HTML, name: "HTML", ext: "html htm shtml xhtml", commentLine: nil, commentStart: "<!--", commentEnd: "-->"),
             Lang(id: .L_XML, name: "XML", ext: "xml xaml xsl xslt xsd xul", commentLine: nil, commentStart: "<!--", commentEnd: "-->"),
-            Lang(id: .L_JS, name: "JavaScript", ext: "js mjs jsx", commentLine: "//", commentStart: "/*", commentEnd: "*/"),
+            Lang(id: .L_JAVASCRIPT, name: "JavaScript", ext: "js mjs jsx", commentLine: "//", commentStart: "/*", commentEnd: "*/"),
             Lang(id: .L_JSON, name: "JSON", ext: "json", commentLine: nil, commentStart: nil, commentEnd: nil),
             Lang(id: .L_PYTHON, name: "Python", ext: "py pyw", commentLine: "#", commentStart: nil, commentEnd: nil),
             Lang(id: .L_SWIFT, name: "Swift", ext: "swift", commentLine: "//", commentStart: "/*", commentEnd: "*/"),
@@ -313,7 +217,7 @@ private class LangsXMLParserDelegate: NSObject, XMLParserDelegate {
         case "asp": return .L_ASP
         case "sql": return .L_SQL
         case "vb", "visualbasic": return .L_VB
-        case "javascript", "js": return .L_JS
+        case "javascript", "js": return .L_JAVASCRIPT
         case "javascript.js": return .L_JAVASCRIPT  // Modern JS variant
         case "css": return .L_CSS
         case "perl": return .L_PERL

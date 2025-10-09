@@ -9,11 +9,8 @@
 import Foundation
 import AppKit
 
-enum AutoIndentMode: Int {
-    case none = 0
-    case basic = 1
-    case advanced = 2
-}
+// AutoIndentMode is defined in NppGUI.swift as the literal C++ translation
+// Using that definition instead of duplicating here
 
 class IndentationManager {
     static let shared = IndentationManager()

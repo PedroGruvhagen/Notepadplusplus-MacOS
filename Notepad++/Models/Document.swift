@@ -50,7 +50,7 @@ enum SavingStatus: Int {
 }
 
 // Translation of Position struct from Buffer.h line 320-335
-struct Position {
+struct DocumentPosition {
     var _firstVisibleLine: Int = 0
     var _startPos: Int = 0
     var _endPos: Int = 0
@@ -58,7 +58,7 @@ struct Position {
     var _selMode: Int = 0
     var _scrollWidth: Int = 2000
     var _wrapCount: Int = 0
-    
+
     init() {}
 }
 
@@ -72,7 +72,7 @@ class Document: ObservableObject {
     private var _doc: ScintillaDocument  // Document handle
     private var _lang: LanguageDefinition?  // LangType
     private var _references: Int = 0
-    private var _refPositions: [Int: Position] = [:]  // Map of view ID to position
+    private var _refPositions: [Int: DocumentPosition] = [:]  // Map of view ID to position
     private var _foldStates: [Int: [Int]] = [:]  // Map of view ID to fold states
     
     // File properties
@@ -369,7 +369,7 @@ class Document: ObservableObject {
         _references += 1
         
         if _refPositions[identifier] == nil {
-            _refPositions[identifier] = Position()
+            _refPositions[identifier] = DocumentPosition()
             _foldStates[identifier] = []
         }
         
@@ -392,11 +392,11 @@ class Document: ObservableObject {
     }
     
     // MARK: - Position management (Translation of setPosition/getPosition)
-    func setPosition(_ pos: Position, identifier: Int) {
+    func setPosition(_ pos: DocumentPosition, identifier: Int) {
         _refPositions[identifier] = pos
     }
     
-    func getPosition(identifier: Int) -> Position? {
+    func getPosition(identifier: Int) -> DocumentPosition? {
         return _refPositions[identifier]
     }
     

@@ -36,10 +36,20 @@ struct LargeFileRestriction: Codable {
     // Line 847: bool _suppress2GBWarning = false;
     var _suppress2GBWarning: Bool = false
 
-    // Convenience computed property for UI (not in C++ original)
+    // Convenience computed properties for UI (not in C++ original)
     var fileSizeMB: Int {
         get { Int(_largeFileSizeDefInByte / (1024 * 1024)) }
         set { _largeFileSizeDefInByte = Int64(newValue * 1024 * 1024) }
+    }
+
+    var isEnabled: Bool {
+        get { _isEnabled }
+        set { _isEnabled = newValue }
+    }
+
+    var allowBraceMatch: Bool {
+        get { _allowBraceMatch }
+        set { _allowBraceMatch = newValue }
     }
 }
 
