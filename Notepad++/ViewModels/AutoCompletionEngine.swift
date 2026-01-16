@@ -134,7 +134,8 @@ class InsertedMatchedChars {
         let string = textView.string as NSString
         guard position < string.length else { return nil }
         let unichar = string.character(at: position)
-        return Character(UnicodeScalar(unichar)!)
+        guard let scalar = UnicodeScalar(unichar) else { return nil }
+        return Character(scalar)
     }
 }
 
@@ -405,7 +406,10 @@ class AutoCompletionEngine: NSObject {
         var pos = position - 1
         while pos > 0 {
             let char = text.character(at: pos)
-            let scalar = UnicodeScalar(char)!
+            guard let scalar = UnicodeScalar(char) else {
+                pos -= 1
+                continue
+            }
             if !CharacterSet.alphanumerics.contains(scalar) && scalar != "_" {
                 return pos + 1
             }
@@ -422,7 +426,10 @@ class AutoCompletionEngine: NSObject {
         var pos = position
         while pos < length {
             let char = text.character(at: pos)
-            let scalar = UnicodeScalar(char)!
+            guard let scalar = UnicodeScalar(char) else {
+                pos += 1
+                continue
+            }
             if !CharacterSet.alphanumerics.contains(scalar) && scalar != "_" {
                 return pos
             }

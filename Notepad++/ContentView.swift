@@ -165,7 +165,91 @@ struct ContentView: View {
                 documentManager.closeOtherTabs()
             }
         }
-        
+
+        NotificationCenter.default.addObserver(
+            forName: .closeAllToLeft,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                documentManager.closeAllToLeft()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .closeAllToRight,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                documentManager.closeAllToRight()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .closeAllUnchanged,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                documentManager.closeAllUnchanged()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .moveToTrash,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                documentManager.moveToTrash()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .reloadDocument,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                await documentManager.reloadDocument()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .saveCopyAs,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                if let activeTab = documentManager.activeTab {
+                    await documentManager.saveCopyAs(activeTab)
+                }
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .renameDocument,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                if let activeTab = documentManager.activeTab {
+                    await documentManager.renameDocument(activeTab)
+                }
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .printDocument,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                documentManager.printDocument()
+            }
+        }
+
         // Copy/Paste/Cut/SelectAll/Undo/Redo handlers are now handled by SyntaxTextEditor.Coordinator
         // to prevent duplicate event handling and paste duplication bugs
         // This centralizes all text editing commands in one location for better maintainability

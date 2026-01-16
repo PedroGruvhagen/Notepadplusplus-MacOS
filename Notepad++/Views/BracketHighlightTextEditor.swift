@@ -134,15 +134,8 @@ struct BracketHighlightTextEditor: NSViewRepresentable {
         // DO NOT configure auto-completion
         
         // Apply initial syntax highlighting if enabled
-        if syntaxHighlightingEnabled {
-            if let language = language {
-                print("DEBUG: Initial highlighting - Language detected: \(language.name)")
-                context.coordinator.applySyntaxHighlighting(textView: textView, language: language)
-            } else {
-                print("DEBUG: Initial highlighting - NO LANGUAGE DETECTED!")
-            }
-        } else {
-            print("DEBUG: Initial highlighting - Syntax highlighting disabled")
+        if syntaxHighlightingEnabled, let language = language {
+            context.coordinator.applySyntaxHighlighting(textView: textView, language: language)
         }
         
         context.coordinator.updateBracketHighlighting()

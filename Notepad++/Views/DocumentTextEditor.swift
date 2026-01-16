@@ -86,9 +86,11 @@ struct DocumentTextEditor: NSViewRepresentable {
         // CRITICAL: Activate this document's text storage
         // This is the Swift equivalent of SCI_SETDOCPOINTER
         document.activate(in: textView)
-        
+
         // Force layout update to ensure content is displayed
-        textView.layoutManager?.ensureLayout(for: textView.textContainer!)
+        if let textContainer = textView.textContainer {
+            textView.layoutManager?.ensureLayout(for: textContainer)
+        }
         textView.needsDisplay = true
         
         // Configure word wrap
@@ -153,15 +155,8 @@ struct DocumentTextEditor: NSViewRepresentable {
         PerformanceManager.shared.optimizeTextView(textView, forLargeFile: document.isLargeFile)
         
         // Apply initial syntax highlighting if enabled
-        if syntaxHighlightingEnabled {
-            if let language = document.language {
-                print("DEBUG: Initial highlighting - Language detected: \(language.name)")
-                document.syntaxHighlighter.highlight(textStorage: document.textStorage, language: language)
-            } else {
-                print("DEBUG: Initial highlighting - NO LANGUAGE DETECTED!")
-            }
-        } else {
-            print("DEBUG: Initial highlighting - Syntax highlighting disabled")
+        if syntaxHighlightingEnabled, let language = document.language {
+            document.syntaxHighlighter.highlight(textStorage: document.textStorage, language: language)
         }
         
         context.coordinator.updateBracketHighlighting()
@@ -187,9 +182,11 @@ struct DocumentTextEditor: NSViewRepresentable {
             
             // Activate new document (swaps text storage) and restore position when switching tabs
             document.activate(in: textView, restorePosition: true)
-            
+
             // Force layout update to ensure content is displayed
-            textView.layoutManager?.ensureLayout(for: textView.textContainer!)
+            if let textContainer = textView.textContainer {
+                textView.layoutManager?.ensureLayout(for: textContainer)
+            }
             textView.needsDisplay = true
             
             // Update coordinator reference
