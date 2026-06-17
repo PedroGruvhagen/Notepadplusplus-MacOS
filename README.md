@@ -1,4 +1,5 @@
 # Notepad++ for macOS (Personal Project)
+Note: the app was down for 8 months because of family emergencies, but im back and I'll try to send an update between today and tomorrow.
 
 Hey! I'm trying to port Notepad++ to macOS because I really miss having it on my Mac. This is a personal project I'm working on in my free time.
 
