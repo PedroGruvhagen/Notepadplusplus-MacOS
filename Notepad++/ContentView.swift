@@ -37,6 +37,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 800, minHeight: 600)
+        .background(WindowCloseGuard())
         .toolbar(settings.showToolbar ? .visible : .hidden)
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
@@ -141,28 +142,28 @@ struct ContentView: View {
         ) { _ in
             Task { @MainActor in
                 if let activeTab = documentManager.activeTab {
-                    documentManager.closeTab(activeTab)
+                    await documentManager.closeTab(activeTab)
                 }
             }
         }
-        
+
         NotificationCenter.default.addObserver(
             forName: .closeAllTabs,
             object: nil,
             queue: .main
         ) { _ in
             Task { @MainActor in
-                documentManager.closeAllTabs()
+                await documentManager.closeAllTabs()
             }
         }
-        
+
         NotificationCenter.default.addObserver(
             forName: .closeOtherTabs,
             object: nil,
             queue: .main
         ) { _ in
             Task { @MainActor in
-                documentManager.closeOtherTabs()
+                await documentManager.closeOtherTabs()
             }
         }
 
@@ -172,7 +173,7 @@ struct ContentView: View {
             queue: .main
         ) { _ in
             Task { @MainActor in
-                documentManager.closeAllToLeft()
+                await documentManager.closeAllToLeft()
             }
         }
 
@@ -182,7 +183,7 @@ struct ContentView: View {
             queue: .main
         ) { _ in
             Task { @MainActor in
-                documentManager.closeAllToRight()
+                await documentManager.closeAllToRight()
             }
         }
 
@@ -202,7 +203,7 @@ struct ContentView: View {
             queue: .main
         ) { _ in
             Task { @MainActor in
-                documentManager.moveToTrash()
+                await documentManager.moveToTrash()
             }
         }
 

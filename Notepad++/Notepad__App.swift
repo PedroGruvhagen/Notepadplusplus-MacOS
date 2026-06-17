@@ -138,43 +138,12 @@ struct Notepad__App: App {
                 // TODO: Print Now
             }
             
-            // Edit menu - replacing standard text editing commands
-            CommandGroup(replacing: .undoRedo) {
-                Button("Undo") {
-                    NotificationCenter.default.post(name: .undo, object: nil)
-                }
-                .keyboardShortcut("z", modifiers: .command)
-                
-                Button("Redo") {
-                    NotificationCenter.default.post(name: .redo, object: nil)
-                }
-                .keyboardShortcut("z", modifiers: [.command, .shift])
-            }
-            
-            CommandGroup(replacing: .pasteboard) {
-                Button("Cut") {
-                    NotificationCenter.default.post(name: .cut, object: nil)
-                }
-                .keyboardShortcut("x", modifiers: .command)
-                
-                Button("Copy") {
-                    NotificationCenter.default.post(name: .copy, object: nil)
-                }
-                .keyboardShortcut("c", modifiers: .command)
-                
-                Button("Paste") {
-                    NotificationCenter.default.post(name: .paste, object: nil)
-                }
-                .keyboardShortcut("v", modifiers: .command)
-                
-                Divider()
-                
-                Button("Select All") {
-                    NotificationCenter.default.post(name: .selectAll, object: nil)
-                }
-                .keyboardShortcut("a", modifiers: .command)
-            }
-            
+            // Undo/Redo and Cut/Copy/Paste/Select All are intentionally NOT overridden:
+            // the standard AppKit Edit menu drives the first-responder NSTextView directly
+            // (allowsUndo is enabled), so Cmd+Z/X/C/V/A work natively. Replacing them with
+            // notification-posting buttons routed to a dead listener, which is why undo and
+            // the clipboard commands did nothing.
+
             CommandGroup(after: .textEditing) {
                 Divider()
                 
@@ -420,6 +389,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false // We handle untitled creation ourselves
     }
 
+    // Guard Cmd+Q / Quit so unsaved documents prompt to save first (NppIO.cpp fileCloseAll).
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let manager = documentManager, manager.hasModifiedDocuments else {
+            return .terminateNow
+        }
+        Task { @MainActor in
+            let canTerminate = await manager.confirmCloseAllForQuit()
+            sender.reply(toApplicationShouldTerminate: canTerminate)
+        }
+        return .terminateLater
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Don't restore session - app should start fresh every time
         Task { @MainActor in
@@ -435,6 +416,48 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 // Only create untitled if truly nothing was opened
                 manager.createNewDocument()
             }
+        }
+    }
+}
+
+// MARK: - Window close guard
+// SwiftUI WindowGroup windows have no save-on-close hook, so closing via the red
+// traffic-light button discarded unsaved documents silently. This accessor installs an
+// NSWindowDelegate that runs the same unsaved-changes prompt as Quit before the window closes.
+struct WindowCloseGuard: NSViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async { context.coordinator.attach(to: view.window) }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if context.coordinator.window == nil {
+            DispatchQueue.main.async { context.coordinator.attach(to: nsView.window) }
+        }
+    }
+
+    final class Coordinator: NSObject, NSWindowDelegate {
+        weak var window: NSWindow?
+        private var isClosing = false
+
+        func attach(to window: NSWindow?) {
+            guard let window, self.window == nil else { return }
+            self.window = window
+            window.delegate = self
+        }
+
+        func windowShouldClose(_ sender: NSWindow) -> Bool {
+            if isClosing { return true }
+            Task { @MainActor in
+                if await DocumentManager.shared.confirmCloseAllForQuit() {
+                    isClosing = true
+                    sender.close()
+                }
+            }
+            return false  // defer; close happens above only if the user did not cancel
         }
     }
 }

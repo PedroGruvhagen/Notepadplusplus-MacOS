@@ -365,6 +365,16 @@ extension NSTextView {
         }
     }
     
+    // Replace a specific range with undo registration. Used by Find/Replace so a wrong
+    // replacement can be reverted with Cmd+Z (previously replacements bypassed the text
+    // view and the undo stack entirely). UTF-16 NSRange, matching NSString match offsets.
+    func replaceCharactersUndoable(in range: NSRange, with text: String) {
+        if self.shouldChangeText(in: range, replacementString: text) {
+            self.textStorage?.replaceCharacters(in: range, with: text)
+            self.didChangeText()
+        }
+    }
+
     // Translation of: SCI_INSERTTEXT
     // Insert text at a specific position
     func insertText(at position: Int, text: String) {

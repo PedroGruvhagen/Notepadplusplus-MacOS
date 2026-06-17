@@ -117,9 +117,16 @@ class Document: ObservableObject {
             if content != oldValue {
                 setDirty(true)
                 _doc.setText(content)
-                textStorage.beginEditing()
-                textStorage.replaceCharacters(in: NSRange(location: 0, length: textStorage.length), with: content)
-                textStorage.endEditing()
+                // Only rewrite the live text storage for PROGRAMMATIC content changes
+                // (open, reload, EOL convert). When the user is typing, the NSTextView has
+                // already mutated this same textStorage (it is attached via
+                // document.activate(in:)), so rewriting the whole storage here would wipe
+                // the native undo stack on every keystroke - which is why Cmd+Z did nothing.
+                if textStorage.string != content {
+                    textStorage.beginEditing()
+                    textStorage.replaceCharacters(in: NSRange(location: 0, length: textStorage.length), with: content)
+                    textStorage.endEditing()
+                }
             }
         }
     }
@@ -306,8 +313,9 @@ class Document: ObservableObject {
     func setDirty(_ dirty: Bool) {
         let wasDirty = _isDirty
         _isDirty = dirty
-        
+
         if wasDirty != dirty {
+            objectWillChange.send()  // _isDirty is read by the tab "modified" dot and status bar
             doNotify(.dirty)
         }
     }
@@ -440,6 +448,7 @@ class Document: ObservableObject {
     
     func setEolFormat(_ format: EOLType) {
         _eolFormat = format
+        objectWillChange.send()  // _eolFormat is shown in the status bar
         doNotify(.format)
     }
     
@@ -481,8 +490,11 @@ class Document: ObservableObject {
         
         // Create backup before saving
         BackupManager.shared.createBackup(for: self)
-        
-        let contentToSave = content
+
+        // Apply the buffer's EOL format at write time (Scintilla model). The editor keeps
+        // text LF-normalised while editing; without this, lines opened as CRLF plus
+        // newly-typed LF lines were saved with mixed endings.
+        let contentToSave = EncodingManager.shared.convertEOL(in: content, to: _eolFormat)
         let encodingToUse = _unicodeMode
         try await Task {
             try await MainActor.run {
@@ -543,12 +555,15 @@ class Document: ObservableObject {
         }
     }
     
-    // Convert EOL in current document
+    // Convert EOL in current document.
+    // NSTextView normalises CR/CRLF to LF for display, so the EOL is tracked as a per-buffer
+    // format flag and materialised at save time (see save()), matching the Scintilla model.
+    // Rewriting the buffer with CR characters here had no visible effect and was lost on the
+    // next edit, which is why the EOL Conversion menu appeared to do nothing.
     func convertEOL(to newEOL: EOLType) {
-        let convertedContent = EncodingManager.shared.convertEOL(in: content, to: newEOL)
-        content = convertedContent
-        _eolFormat = newEOL
-        _isDirty = true
+        guard _eolFormat != newEOL else { return }
+        setEolFormat(newEOL)   // updates the status bar (doNotify(.format) + objectWillChange)
+        setDirty(true)         // marks the buffer dirty so the change is saved
     }
     
     // MARK: - File monitoring support

@@ -21,7 +21,9 @@ struct TabBarView: View {
                             documentManager.activeTab = tab
                         },
                         onClose: {
-                            documentManager.closeTab(tab)
+                            Task { @MainActor in
+                                await documentManager.closeTab(tab)
+                            }
                         }
                     )
                 }

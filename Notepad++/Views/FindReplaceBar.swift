@@ -255,27 +255,44 @@ struct FindReplaceBar: View {
     private func replaceNext() {
         let matches = findAllMatches()
         guard currentMatch > 0 && currentMatch <= matches.count else { return }
-        
+
         let range = matches[currentMatch - 1]
-        let nsString = document.content as NSString
-        let newContent = nsString.replacingCharacters(in: range, with: replaceText)
-        document.updateContent(newContent)
-        
+
+        // Route through the live NSTextView so the replacement lands on the native undo
+        // stack (Cmd+Z reverts it). Falling back to a full-string swap only if no live view.
+        if let textView = DocumentTextEditor.sharedTextView {
+            textView.replaceCharactersUndoable(in: range, with: replaceText)
+            let caret = range.location + (replaceText as NSString).length
+            textView.setSelectedRange(NSRange(location: caret, length: 0))
+            textView.scrollRangeToVisible(textView.selectedRange())
+        } else {
+            let nsString = document.content as NSString
+            document.updateContent(nsString.replacingCharacters(in: range, with: replaceText))
+        }
+
         updateSearchResults()
     }
-    
+
     private func replaceAll() {
         let matches = findAllMatches()
         guard !matches.isEmpty else { return }
-        
-        var newContent = document.content as NSString
-        
-        // Replace from end to beginning to maintain indices
-        for range in matches.reversed() {
-            newContent = newContent.replacingCharacters(in: range, with: replaceText) as NSString
+
+        // One undo group for the whole batch, matching Notepad++ (Replace All is a single
+        // undo action). Replace from end to beginning so earlier offsets stay valid.
+        if let textView = DocumentTextEditor.sharedTextView {
+            textView.beginUndoAction()
+            for range in matches.reversed() {
+                textView.replaceCharactersUndoable(in: range, with: replaceText)
+            }
+            textView.endUndoAction()
+        } else {
+            var newContent = document.content as NSString
+            for range in matches.reversed() {
+                newContent = newContent.replacingCharacters(in: range, with: replaceText) as NSString
+            }
+            document.updateContent(newContent as String)
         }
-        
-        document.updateContent(newContent as String)
+
         updateSearchResults()
     }
 }

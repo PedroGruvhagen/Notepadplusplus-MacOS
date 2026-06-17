@@ -101,7 +101,14 @@ class DocumentManager: ObservableObject {
             do {
                 try await document.save()
             } catch {
-                print("Error saving document: \(error)")
+                // Surface the failure - a silent print here lost data when an
+                // encoding conversion failed (e.g. non-ASCII typed into an ASCII file).
+                let alert = NSAlert()
+                alert.messageText = "Save Failed"
+                alert.informativeText = "Could not save \(document.fileName): \(error.localizedDescription)"
+                alert.alertStyle = .critical
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
             }
         }
     }
@@ -135,16 +142,66 @@ class DocumentManager: ObservableObject {
         }
     }
     
-    func closeTab(_ tab: EditorTab) {
-        if let index = tabs.firstIndex(of: tab) {
-            tabs.remove(at: index)
-            
-            if tabs.isEmpty {
-                createNewDocument()
-            } else if activeTab == tab {
-                activeTab = tabs[max(0, index - 1)]
-            }
+    /// Translation of Notepad_plus.cpp doSaveOrNot (line 2414) + NppIO.cpp fileClose
+    /// dirty-check (lines 1149-1171). Returns true if the buffer may be closed, false to
+    /// abort closing (Cancel pressed, or a cancelled Save As).
+    func confirmClose(_ tab: EditorTab) async -> Bool {
+        let document = tab.document
+
+        // NppIO.cpp:1149 - an empty untitled buffer closes silently (no prompt).
+        if document.fileURL == nil && document.content.isEmpty {
+            return true
         }
+
+        // NppIO.cpp:1153 - only dirty buffers prompt.
+        guard document.isModified else { return true }
+
+        // Notepad_plus.cpp:2435-2447 doSaveOrNot - "Save"/"Save file \"...\"?" (Yes/No/Cancel).
+        // Buttons are placed per macOS HIG (Save / Cancel / Don't Save).
+        let alert = NSAlert()
+        alert.messageText = "Save"
+        alert.informativeText = "Save file \"\(document.fileName)\"?"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Save")        // IDYES    -> .alertFirstButtonReturn
+        alert.addButton(withTitle: "Cancel")      // IDCANCEL -> .alertSecondButtonReturn
+        alert.addButton(withTitle: "Don't Save")  // IDNO     -> .alertThirdButtonReturn
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:   // Save (IDYES) - NppIO.cpp:1158-1162
+            await saveDocument(tab)
+            // Still modified means the Save As panel was cancelled -> abort closing.
+            return !document.isModified
+        case .alertThirdButtonReturn:   // Don't Save (IDNO) - NppIO.cpp:1167, discard & continue
+            return true
+        default:                        // Cancel (IDCANCEL) - NppIO.cpp:1163, abort closing
+            return false
+        }
+    }
+
+    /// Loops the close confirmation over every dirty buffer for an app-wide quit.
+    /// Returns false if the user cancels any prompt (terminate should be aborted).
+    func confirmCloseAllForQuit() async -> Bool {
+        for tab in tabs where tab.document.isModified {
+            if await confirmClose(tab) == false { return false }
+        }
+        return true
+    }
+
+    /// Removes a tab from the array and re-selects a neighbour (no save prompt).
+    private func removeTab(_ tab: EditorTab) {
+        guard let index = tabs.firstIndex(of: tab) else { return }
+        tabs.remove(at: index)
+
+        if tabs.isEmpty {
+            createNewDocument()
+        } else if activeTab == tab {
+            activeTab = tabs[max(0, index - 1)]
+        }
+    }
+
+    func closeTab(_ tab: EditorTab) async {
+        guard await confirmClose(tab) else { return }
+        removeTab(tab)
     }
     
     func saveAllDocuments() async {
@@ -170,31 +227,44 @@ class DocumentManager: ObservableObject {
         }
     }
     
-    func closeAllTabs() {
+    func closeAllTabs() async {
+        // NppIO.cpp fileCloseAll loops doSaveOrNot over every dirty buffer; Cancel aborts all.
+        for tab in tabs {
+            guard await confirmClose(tab) else { return }
+        }
         tabs.removeAll()
         createNewDocument()
     }
-    
-    func closeOtherTabs() {
+
+    func closeOtherTabs() async {
         guard let currentTab = activeTab else { return }
+        for tab in tabs where tab != currentTab {
+            guard await confirmClose(tab) else { return }
+        }
         tabs = [currentTab]
         activeTab = currentTab
     }
 
     // Close all tabs to the left of the active tab
-    func closeAllToLeft() {
+    func closeAllToLeft() async {
         guard let currentTab = activeTab,
               let currentIndex = tabs.firstIndex(of: currentTab) else { return }
 
+        for tab in tabs[..<currentIndex] {
+            guard await confirmClose(tab) else { return }
+        }
         tabs = Array(tabs[currentIndex...])
         activeTab = currentTab
     }
 
     // Close all tabs to the right of the active tab
-    func closeAllToRight() {
+    func closeAllToRight() async {
         guard let currentTab = activeTab,
               let currentIndex = tabs.firstIndex(of: currentTab) else { return }
 
+        for tab in tabs[(currentIndex + 1)...] {
+            guard await confirmClose(tab) else { return }
+        }
         tabs = Array(tabs[...currentIndex])
         activeTab = currentTab
     }
@@ -215,13 +285,23 @@ class DocumentManager: ObservableObject {
     }
 
     // Move file to trash
-    func moveToTrash() {
+    func moveToTrash() async {
         guard let activeTab = activeTab,
               let url = activeTab.document.fileURL else { return }
 
+        // Confirm the destructive action (translation of NppIO.cpp fileDelete confirmation).
+        let confirm = NSAlert()
+        confirm.messageText = "Move to Trash"
+        confirm.informativeText = "Are you sure you want to move \"\(activeTab.document.fileName)\" to the Trash?"
+        confirm.alertStyle = .warning
+        confirm.addButton(withTitle: "Move to Trash")
+        confirm.addButton(withTitle: "Cancel")
+        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+
         do {
             try FileManager.default.trashItem(at: url, resultingItemURL: nil)
-            closeTab(activeTab)
+            // The file is gone, so close the tab directly without a save prompt.
+            removeTab(activeTab)
         } catch {
             let alert = NSAlert()
             alert.messageText = "Move to Trash Failed"
@@ -286,9 +366,11 @@ class DocumentManager: ObservableObject {
         }
 
         do {
-            // Save content to the new location without changing the document's file path
+            // Save content to the new location without changing the document's file path.
+            // Apply the buffer's EOL format at write time (Scintilla model) so the saved
+            // copy has consistent line endings instead of mixed CRLF/LF.
             try EncodingManager.shared.writeFile(
-                content: tab.document.content,
+                content: EncodingManager.shared.convertEOL(in: tab.document.content, to: tab.document.eolType),
                 to: url,
                 encoding: tab.document.encoding
             )
