@@ -1,16 +1,21 @@
-PROPRIETARY SOFTWARE LICENSE AGREEMENT
+MIT License
 
-Copyright (c) 2025 Pedro Gruvhagen. All rights reserved.
+Copyright (c) 2025 Pedro Gruvhagen
 
-This software was developed by Pedro Gruvhagen from Pedro Gruvhagen with assistance from Claude Code.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-The software and associated documentation files (the "Software") are the proprietary property of Pedro Gruvhagen. The Software is provided solely for the internal use of Pedro Gruvhagen and its employees.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-USAGE RESTRICTIONS:
-1. The Software may not be distributed, shared, or otherwise made available to any third party outside of Pedro Gruvhagen.
-2. The Software may not be copied, modified, merged, published, distributed, sublicensed, and/or sold without explicit written permission from Pedro Gruvhagen.
-3. The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement.
-
-This license is effective until terminated. Failure to comply with the above terms will automatically terminate this license.
-
-For questions regarding this license, please contact Pedro Gruvhagen.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

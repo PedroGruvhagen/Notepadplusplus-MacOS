@@ -143,3 +143,23 @@ Temporary Items
 
 # Autonomous protocol task/handoff files (never committed)
 .tasks/
+
+# --- Apple code-signing / notarization secrets (NEVER commit) ---
+*.p12
+*.cer
+*.pem
+*.key
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+ExportOptions.plist
+
+# Local signing config (Apple ID / Team ID / notary profile) — keep the .example
+scripts/signing.env
+.env
+.env.*
+!scripts/signing.env.example
+
+# Local-only Xcode signing overrides
+Config/Local.xcconfig
+*.local.xcconfig

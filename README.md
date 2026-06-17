@@ -137,6 +137,34 @@ open Notepad++.xcodeproj
 # Build and run (⌘R)
 ```
 
+## 🔏 Code Signing & Releases
+
+The official builds on the [Releases page](https://github.com/PedroGruvhagen/Notepadplusplus-MacOS/releases) are **signed with a Developer ID and notarized by Apple**, so they open on any Mac without Gatekeeper warnings. That is purely for your convenience. This is a free, open-source project (MIT) and you are completely welcome to build and sign it yourself.
+
+### Just want to run it?
+Download the latest `.dmg` from Releases, open it, and drag Notepad++ into Applications. Because the release is notarized, you will not need any "right-click to open" or `xattr` workaround.
+
+### Building it yourself
+When you build from source, the app is **ad-hoc signed for local use** automatically. That is all you need to run your own build on your own Mac, no Apple account required.
+
+### Signing your own build for distribution
+If you want to hand your build to other people's Macs without Gatekeeper warnings, you need your own Apple Developer ID. No credentials of any kind are stored in this repository; you supply your own through a gitignored config:
+
+1. Copy the template (your real values live only in the gitignored `scripts/signing.env`):
+   ```bash
+   cp scripts/signing.env.example scripts/signing.env
+   ```
+2. Create a notarization keychain profile once, using an app-specific password from [appleid.apple.com](https://appleid.apple.com):
+   ```bash
+   xcrun notarytool store-credentials "notepadpp-notary" \
+     --apple-id "you@example.com" --team-id "YOURTEAMID" \
+     --password "xxxx-xxxx-xxxx-xxxx"
+   ```
+3. Build, sign, notarize, staple, and package a DMG:
+   ```bash
+   ./scripts/sign-and-notarize.sh
+   ```
+
 ## 🤝 Want to Help?
 
 I'd love some help! I'm learning as I go, so if you know Swift or just love Notepad++ and want to contribute, please feel free to jump in. Even just testing and reporting bugs would be super helpful.
@@ -151,6 +179,8 @@ I'd love some help! I'm learning as I go, so if you know Swift or just love Note
 ## 📄 License
 
 This macOS implementation is licensed under the **MIT License** - see [LICENSE](LICENSE) file.
+
+> The `LICENSE` file has been corrected to the MIT License so it matches this project's open-source intent.
 
 The original Notepad++ is licensed under GPL v3.
 
