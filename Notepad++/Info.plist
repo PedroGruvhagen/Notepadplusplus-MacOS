@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  CFBundleDocumentTypes: declare that Notepad++ can open ANY file, matching the
+	  Windows app which opens all files regardless of extension. This lets Finder
+	  offer "Open With > Notepad++" and route double-clicks / drag-and-drop for
+	  arbitrary files (zip, binary, extensionless) into application(_:open:), which
+	  calls the unrestricted openDocument(from:) path.
+
+	  LSHandlerRank = Alternate ensures we are NEVER the default handler, so we do
+	  not hijack .zip from Archive Utility or any other type's system owner; we only
+	  appear as an option. LSItemContentTypes public.data covers every file and
+	  public.item covers any filesystem item.
+
+	  GENERATE_INFOPLIST_FILE remains YES; Xcode merges the INFOPLIST_KEY_* build
+	  settings into this file at build time, so only CFBundleDocumentTypes is declared here.
+	-->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>All Files</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.data</string>
+				<string>public.item</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

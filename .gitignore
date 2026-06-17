@@ -140,3 +140,6 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Autonomous protocol task/handoff files (never committed)
+.tasks/

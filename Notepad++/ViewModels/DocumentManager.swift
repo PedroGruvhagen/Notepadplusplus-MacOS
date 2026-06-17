@@ -36,7 +36,12 @@ class DocumentManager: ObservableObject {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
-        panel.allowedContentTypes = [.text, .sourceCode, .json, .xml, .yaml]
+        // Notepad++ opens ANY file regardless of extension (default dialog filter
+        // is "All types (*.*)"). An empty allowedContentTypes array applies no UTI
+        // filter, so zip, binary, and extensionless files can all be selected.
+        // The read path (EncodingManager.readFile) is binary-safe and never rejects
+        // by extension, so any selected file opens.
+        panel.allowedContentTypes = []
         panel.message = "Select files to open"
         
         let response = await panel.beginAsync()
@@ -104,7 +109,9 @@ class DocumentManager: ObservableObject {
     @MainActor
     func saveDocumentAs(_ tab: EditorTab) async {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.text]
+        // Notepad++ Save As allows any type (default filter "All types (*.*)"); an
+        // empty array honors whatever extension the user types instead of forcing .txt.
+        panel.allowedContentTypes = []
         panel.nameFieldStringValue = tab.document.fileName
         
         let response = await panel.beginAsync()
@@ -267,7 +274,9 @@ class DocumentManager: ObservableObject {
     @MainActor
     func saveCopyAs(_ tab: EditorTab) async {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.text]
+        // Notepad++ Save As allows any type (default filter "All types (*.*)"); an
+        // empty array honors whatever extension the user types instead of forcing .txt.
+        panel.allowedContentTypes = []
         panel.nameFieldStringValue = "Copy of " + tab.document.fileName
 
         let response = await panel.beginAsync()
@@ -303,7 +312,9 @@ class DocumentManager: ObservableObject {
         }
 
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.text]
+        // Notepad++ Save As allows any type (default filter "All types (*.*)"); an
+        // empty array honors whatever extension the user types instead of forcing .txt.
+        panel.allowedContentTypes = []
         panel.nameFieldStringValue = tab.document.fileName
         panel.directoryURL = oldURL.deletingLastPathComponent()
 
