@@ -173,25 +173,46 @@ struct DocumentTextEditor: NSViewRepresentable {
     }
     
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = scrollView.documentView as? NSTextView else { return }
-        
-        // Check if we need to switch documents
-        if context.coordinator.document?.id != document.id {
+        // Resolve the live text view: prefer the shared singleton, fall back to what the
+        // scroll view currently holds. During close/reopen churn the shared view can be
+        // orphaned from the scroll view's documentView slot.
+        let textView = Self.sharedTextView ?? (scrollView.documentView as? NSTextView)
+        guard let textView = textView else { return }
+
+        // Self-heal: if the scroll view's documentView is not our shared text view,
+        // re-attach it. An NSView can only live in one scroll view at a time; after
+        // close/reopen cycles it can be left dangling with no documentView owner.
+        if scrollView.documentView !== textView {
+            scrollView.documentView = textView
+        }
+
+        // Trigger a doc swap when either the tab id changed (normal tab switch) OR when
+        // the text view is still attached to the wrong text storage (the desync that
+        // causes a blank editor after close/reopen). Port of SCI_SETDOCPOINTER guard.
+        let needsDocSwap = context.coordinator.document?.id != document.id
+            || textView.textStorage !== document.textStorage
+
+        if needsDocSwap {
             // Save state from old document
             context.coordinator.document?.saveState(from: textView)
-            
+
             // Activate new document (swaps text storage) and restore position when switching tabs
             document.activate(in: textView, restorePosition: true)
 
-            // Force layout update to ensure content is displayed
-            if let textContainer = textView.textContainer {
-                textView.layoutManager?.ensureLayout(for: textContainer)
+            // Force a complete relayout so glyphs actually render after the storage swap.
+            // Without invalidating the layout manager the text container may show stale
+            // (empty) glyphs even though the storage now has the correct string.
+            if let layoutManager = textView.layoutManager,
+               let textContainer = textView.textContainer {
+                let fullRange = NSRange(location: 0, length: textView.textStorage?.length ?? 0)
+                layoutManager.invalidateLayout(forCharacterRange: fullRange, actualCharacterRange: nil)
+                layoutManager.ensureLayout(for: textContainer)
             }
             textView.needsDisplay = true
-            
+
             // Update coordinator reference
             context.coordinator.document = document
-            
+
             // Apply syntax highlighting for new document
             if syntaxHighlightingEnabled, let language = document.language {
                 document.syntaxHighlighter.highlight(textStorage: document.textStorage, language: language)

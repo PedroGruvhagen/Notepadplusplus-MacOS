@@ -78,6 +78,20 @@ class DocumentManager: ObservableObject {
         do {
             let document = try await Document.open(from: url)
             let tab = EditorTab(document: document)
+
+            // Port of NppIO.cpp lone-empty handling: if there is exactly one tab and it
+            // is a lone empty untitled unmodified buffer, remove it so the opened file
+            // replaces it instead of being appended beside it. This mirrors Notepad++
+            // dropping "new 1" when a real file is opened and is correct for both
+            // Finder-launch and in-app File>Open.
+            if tabs.count == 1,
+               let onlyTab = tabs.first,
+               onlyTab.document.fileURL == nil,
+               onlyTab.document.content.isEmpty,
+               !onlyTab.document.isModified {
+                tabs.removeAll()
+            }
+
             tabs.append(tab)
             activeTab = tab
             addToRecentFiles(url)

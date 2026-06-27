@@ -366,7 +366,6 @@ struct Notepad__App: App {
 // MARK: - AppDelegate for handling file opening from Finder
 class AppDelegate: NSObject, NSApplicationDelegate {
     weak var documentManager: DocumentManager?
-    private var filesOpenedAtLaunch = false
     private var hasCheckedForUntitled = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -376,7 +375,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_ application: NSApplication, open urls: [URL]) {
         // Handle files dropped on dock icon or opened via "Open With"
-        filesOpenedAtLaunch = true
         Task { @MainActor in
             for url in urls {
                 await documentManager?.openDocument(from: url)
@@ -402,20 +400,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Don't restore session - app should start fresh every time
-        Task { @MainActor in
-            // Give time for file opening from Finder if launched with file
-            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+        // Don't restore session - app should start fresh every time.
+        // No timing sleep: openDocument(from:) already replaces a lone empty untitled
+        // buffer when a real file is opened (NppIO.cpp lone-empty handling), so both
+        // launch orderings are correct without any race:
+        //   (a) didFinishLaunching creates untitled first, then application(_:open:)
+        //       replaces it with the real file.
+        //   (b) application(_:open:) runs first, then didFinishLaunching sees a
+        //       non-empty tabs array and creates nothing.
+        guard !hasCheckedForUntitled else { return }
+        hasCheckedForUntitled = true
 
-            guard !hasCheckedForUntitled else { return }
-            hasCheckedForUntitled = true
-
-            if let manager = documentManager,
-               manager.tabs.isEmpty &&
-               !filesOpenedAtLaunch {
-                // Only create untitled if truly nothing was opened
-                manager.createNewDocument()
-            }
+        if let manager = documentManager, manager.tabs.isEmpty {
+            manager.createNewDocument()
         }
     }
 }

@@ -6,6 +6,47 @@
 //
 
 import SwiftUI
+import AppKit
+
+// Port of the Notepad++ middle-click-close behaviour: clicking the scroll-wheel
+// button (buttonNumber == 2) anywhere on a tab closes it via the same path as the
+// xmark button, including the unsaved-changes prompt.
+//
+// NSViewRepresentable whose backing view intercepts otherMouseDown events.
+// hitTest returns self only for other-mouse events so that left-clicks and
+// right-clicks continue to reach SwiftUI's onTapGesture and context menus.
+private struct MiddleClickCloseArea: NSViewRepresentable {
+    let onMiddleClick: () -> Void
+
+    func makeNSView(context: Context) -> MiddleClickView {
+        let view = MiddleClickView()
+        view.onMiddleClick = onMiddleClick
+        return view
+    }
+
+    func updateNSView(_ nsView: MiddleClickView, context: Context) {
+        nsView.onMiddleClick = onMiddleClick
+    }
+
+    class MiddleClickView: NSView {
+        var onMiddleClick: (() -> Void)?
+
+        // Pass-through for all pointer events except other-mouse-down: returning nil
+        // lets SwiftUI's gesture recognisers process left/right clicks normally.
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            if let event = NSApp.currentEvent, event.type == .otherMouseDown {
+                return self
+            }
+            return nil
+        }
+
+        override func otherMouseDown(with event: NSEvent) {
+            if event.buttonNumber == 2 {
+                onMiddleClick?()
+            }
+        }
+    }
+}
 
 struct TabBarView: View {
     @ObservedObject var documentManager: DocumentManager
@@ -79,6 +120,12 @@ struct TabItemView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 4)
                 .stroke(isActive ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
+        )
+        .overlay(
+            // Middle-click (scroll-wheel button) closes the tab via the same path
+            // as the xmark button, including the unsaved-changes prompt. Left-click
+            // and right-click pass through because hitTest returns nil for them.
+            MiddleClickCloseArea(onMiddleClick: onClose)
         )
         .onTapGesture {
             onSelect()
