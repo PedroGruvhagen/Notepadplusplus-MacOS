@@ -13,10 +13,22 @@ import ObjectiveC
 // MARK: - Associated Objects for storing bracket positions
 // Since we can't use setValue:forKey: on NSTextView, we use associated objects
 // This mimics how Scintilla internally stores these values
-private var bracketHighlightPos1Key: UInt8 = 0
-private var bracketHighlightPos2Key: UInt8 = 0
 private var highlightGuideColumnKey: UInt8 = 0
 private var scintillaDocumentKey: UInt8 = 0
+private var liveScintillaDocumentKey: UInt8 = 0
+// F07: the .backgroundColor cells currently painted by braceHighlight/braceBadLight, so each brace
+// update can remove exactly the previous cells (Scintilla replaces the prior brace indication on
+// every SCI_BRACEHIGHLIGHT/SCI_BRACEBADLIGHT, Editor::BraceHighlight) instead of accumulating.
+private var braceLightRangesKey: UInt8 = 0
+
+// Weak wrapper so the associated object does not retain the live ScintillaDocument (it is
+// owned by its Document; when the document closes, this box's reference goes nil and the
+// brace path falls back to the shadow document). Objective-C associated objects cannot
+// hold a Swift weak directly, hence the box.
+private final class WeakScintillaDocumentBox {
+    weak var doc: ScintillaDocument?
+    init(_ doc: ScintillaDocument?) { self.doc = doc }
+}
 
 // MARK: - Scintilla API Constants (from Scintilla.h)
 enum ScintillaConstants {
@@ -52,65 +64,74 @@ extension NSTextView {
         return self.selectedRange().location
     }
     
-    // Translation of: SCI_GETLENGTH
+    // Translation of: SCI_GETLENGTH. UTF-16 length (O(1)), the coordinate space the caret
+    // (selectedRange) and NSTextStorage use. This puts the whole brace path in ONE position
+    // space, matching Scintilla where BraceMatch operates on the same buffer positions the
+    // caret comes from (Document.cxx:3021), instead of mixing Character offsets with the
+    // UTF-16 caret (F15).
     func getLength() -> Int {
-        return self.string.count
+        return (self.string as NSString).length
     }
-    
-    // Translation of: SCI_GETCHARAT
+
+    // Translation of: SCI_GETCHARAT. Reads one UTF-16 unit at `position` (O(1)) and maps it
+    // to a Character exactly as CellBuffer.charAt does (Unicode.Scalar of the unit, or the
+    // replacement sentinel for a lone surrogate half of a non-BMP scalar), so brace
+    // detection round-trips in UTF-16 with no Character/UTF-16 index mismatch near emoji
+    // (F15).
     func getCharAt(_ position: Int) -> Character? {
-        guard position >= 0 && position < self.string.count else { return nil }
-        let index = self.string.index(self.string.startIndex, offsetBy: position)
-        return self.string[index]
-    }
-    
-    // Translation of: SCI_GETCOLUMN
-    func getColumn(_ position: Int) -> Int {
-        guard position >= 0 && position < self.string.count else { return 0 }
-        
-        let text = self.string
-        let index = text.index(text.startIndex, offsetBy: position)
-        
-        // Find the start of the line
-        var lineStart = index
-        while lineStart > text.startIndex && text[text.index(before: lineStart)] != "\n" {
-            lineStart = text.index(before: lineStart)
+        let nsString = self.string as NSString
+        guard position >= 0 && position < nsString.length else { return nil }
+        let unit = nsString.character(at: position)
+        if let scalar = Unicode.Scalar(unit) {
+            return Character(scalar)
         }
-        
-        // Calculate column position (handling tabs)
+        return "\u{FFFD}"
+    }
+
+    // Translation of: SCI_GETCOLUMN. Column of `position`, expanding tabs to the tab stop,
+    // scanning back to the line start in UTF-16 units (O(column), O(1) unit access) rather
+    // than walking Swift String indices. Same coordinate space as the caret (F15).
+    func getColumn(_ position: Int) -> Int {
+        let nsString = self.string as NSString
+        guard position >= 0 && position <= nsString.length else { return 0 }
+
+        // Find the start of the line: scan back to just after the previous '\n'.
+        var lineStart = position
+        while lineStart > 0 && nsString.character(at: lineStart - 1) != 0x000A {
+            lineStart -= 1
+        }
+
+        // Calculate column position, tab stops every 4 (matching Notepad++ default).
         var column = 0
-        var currentIndex = lineStart
-        while currentIndex < index {
-            if text[currentIndex] == "\t" {
-                // Tab stops every 4 spaces (matching Notepad++ default)
+        var i = lineStart
+        while i < position {
+            if nsString.character(at: i) == 0x0009 { // '\t'
                 column = ((column / 4) + 1) * 4
             } else {
                 column += 1
             }
-            currentIndex = text.index(after: currentIndex)
+            i += 1
         }
-        
+
         return column
     }
-    
-    // Translation of: SCI_LINEFROMPOSITION
+
+    // Translation of: SCI_LINEFROMPOSITION. Counts '\n' before `position` in UTF-16 units
+    // (O(1) unit access, no String index walk). Same coordinate space as the caret (F15).
     func lineFromPosition(_ position: Int) -> Int {
-        guard position >= 0 else { return 0 }
-        
-        let text = self.string
+        guard position > 0 else { return 0 }
+
+        let nsString = self.string as NSString
+        let limit = min(position, nsString.length)
         var lineNumber = 0
-        var currentPos = 0
-        
-        for char in text {
-            if currentPos >= position {
-                break
-            }
-            if char == "\n" {
+        var i = 0
+        while i < limit {
+            if nsString.character(at: i) == 0x000A { // '\n'
                 lineNumber += 1
             }
-            currentPos += 1
+            i += 1
         }
-        
+
         return lineNumber
     }
     
@@ -151,21 +172,39 @@ extension NSTextView {
     
     // MARK: - Brace Matching
     
+    // MARK: - Live Scintilla document (F11)
+
+    // The document's own ScintillaDocument (Document._doc), which the editor keeps in sync
+    // incrementally through the storage delegate (F09). Held weakly (see box above). When
+    // present, brace matching runs directly over it with NO per-call full setText.
+    var liveScintillaDocument: ScintillaDocument? {
+        (objc_getAssociatedObject(self, &liveScintillaDocumentKey) as? WeakScintillaDocumentBox)?.doc
+    }
+
+    func setLiveScintillaDocument(_ doc: ScintillaDocument?) {
+        objc_setAssociatedObject(self, &liveScintillaDocumentKey, WeakScintillaDocumentBox(doc), .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+
     // Translation of: SCI_BRACEMATCH
-    // This now uses the EXACT translation of Scintilla's Document::BraceMatch
+    // Runs Scintilla's exact Document::BraceMatch (Document.cxx:3021), which operates on ONE
+    // buffer position space. When the editor has installed the live document (the one the
+    // storage delegate maintains incrementally, F09/F11), match directly against its O(1)
+    // UTF-16 CellBuffer with NO per-call setText and NO whole-document style loop. Only the
+    // dead editors (no live document installed) fall back to the shadow document that
+    // copies the whole text per call, so they still compile and work.
     func braceMatch(_ position: Int) -> Int {
-        // Get or create the Scintilla document
+        if let liveDoc = liveScintillaDocument {
+            return liveDoc.braceMatch(position, 0, 0, false)
+        }
+
+        // Fallback for the dead editors: get or create a shadow document and resync it.
         guard let document = getOrCreateScintillaDocument() else {
             return -1
         }
-        
-        // Synchronize text and styles with the document
         synchronizeWithScintillaDocument(document)
-        
-        // Call the exact translated BraceMatch function from Document.cxx
         return document.braceMatch(position, 0, 0, false)
     }
-    
+
     // Helper to get or create associated Scintilla document
     private func getOrCreateScintillaDocument() -> ScintillaDocument? {
         if let doc = objc_getAssociatedObject(self, &scintillaDocumentKey) as? ScintillaDocument {
@@ -229,43 +268,60 @@ extension NSTextView {
         }
     }
     
-    // Translation of: SCI_BRACEHIGHLIGHT
-    func braceHighlight(_ pos1: Int, _ pos2: Int) {
-        // Store positions using associated objects (mimics Scintilla's internal storage)
-        objc_setAssociatedObject(self, &bracketHighlightPos1Key, pos1, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        objc_setAssociatedObject(self, &bracketHighlightPos2Key, pos2, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        
-        // Trigger display update
-        guard let textStorage = self.textStorage else { return }
-        
-        // Clear any existing bracket highlighting first
-        if textStorage.length > 0 {
-            let fullRange = NSRange(location: 0, length: textStorage.length)
-            textStorage.removeAttribute(.bracketHighlight, range: fullRange)
-        }
-        
-        // Apply new highlighting
-        if pos1 >= 0 && pos1 < textStorage.length {
-            let range1 = NSRange(location: pos1, length: min(1, textStorage.length - pos1))
-            textStorage.addAttribute(.bracketHighlight, value: NSColor.systemYellow.withAlphaComponent(0.3), range: range1)
-        }
-        
-        if pos2 >= 0 && pos2 < textStorage.length {
-            let range2 = NSRange(location: pos2, length: min(1, textStorage.length - pos2))
-            textStorage.addAttribute(.bracketHighlight, value: NSColor.systemYellow.withAlphaComponent(0.3), range: range2)
-        }
+    // F07: the brace .backgroundColor cells currently painted by braceHighlight/braceBadLight. Each
+    // new brace update removes exactly these before repainting, mirroring Scintilla replacing the
+    // previous brace indication on every SCI_BRACEHIGHLIGHT/SCI_BRACEBADLIGHT (Editor::BraceHighlight).
+    var braceLightRanges: [NSRange] {
+        get { (objc_getAssociatedObject(self, &braceLightRangesKey) as? [NSRange]) ?? [] }
+        set { objc_setAssociatedObject(self, &braceLightRangesKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
-    
-    // Translation of: SCI_BRACEBADLIGHT
-    func braceBadLight(_ position: Int) {
-        // Highlight unmatched brace in red
-        if position >= 0, let textStorage = self.textStorage {
-            let range = NSRange(location: position, length: 1)
-            // Ensure range is valid
-            if range.location + range.length <= textStorage.length {
-                textStorage.addAttribute(.backgroundColor, value: NSColor.systemRed.withAlphaComponent(0.3), range: range)
-            }
+
+    // Remove the previously painted brace .backgroundColor (clamped to the current storage), returning
+    // the cleared ranges so the caller can re-assert durable search/Mark All paint over them. Port of
+    // Scintilla replacing the previous brace indication on each SCI_BRACEHIGHLIGHT/SCI_BRACEBADLIGHT
+    // (Notepad_plus.cpp:3031/3036).
+    @discardableResult
+    func clearBraceLight() -> [NSRange] {
+        guard let storage = textStorage else { braceLightRanges = []; return [] }
+        let length = storage.length
+        let cleared = braceLightRanges.filter { $0.location >= 0 && NSMaxRange($0) <= length }
+        for r in cleared { storage.removeAttribute(.backgroundColor, range: r) }
+        braceLightRanges = []
+        return cleared
+    }
+
+    // Translation of: SCI_BRACEHIGHLIGHT (Notepad_plus.cpp:3036). Scintilla replaces the PREVIOUS
+    // brace indication on each call (Editor::BraceHighlight), so clear the prior brace paint before
+    // painting the matched pair. Each cell gets a RENDERED .backgroundColor (ThemeManager bracketColor)
+    // so matched braces are actually visible (they used to paint an unrendered custom key, F07).
+    func braceHighlight(_ pos1: Int, _ pos2: Int) {
+        guard let textStorage = self.textStorage else { return }
+
+        // Remove the previous brace paint first so matched-brace backgrounds never accumulate.
+        clearBraceLight()
+
+        let color = ThemeManager.shared.currentTheme.bracketColor.withAlphaComponent(0.4)
+        let length = textStorage.length
+        var painted: [NSRange] = []
+        for pos in [pos1, pos2] where pos >= 0 && pos < length {
+            let range = NSRange(location: pos, length: 1)
+            textStorage.addAttribute(.backgroundColor, value: color, range: range)
+            painted.append(range)
         }
+        braceLightRanges = painted
+    }
+
+    // Translation of: SCI_BRACEBADLIGHT (Notepad_plus.cpp:3031). Scintilla replaces the previous brace
+    // indication on each call, so clear the prior brace paint before painting the single unmatched
+    // brace cell red. Storing it in braceLightRanges lets the next brace update remove exactly this
+    // cell, so the red no longer accumulates across caret moves (F07).
+    func braceBadLight(_ position: Int) {
+        clearBraceLight()
+        guard let textStorage = self.textStorage, position >= 0 else { return }
+        let range = NSRange(location: position, length: 1)
+        guard range.location + range.length <= textStorage.length else { return }
+        textStorage.addAttribute(.backgroundColor, value: NSColor.systemRed.withAlphaComponent(0.3), range: range)
+        braceLightRanges = [range]
     }
     
     // Translation of: SCI_SETHIGHLIGHTGUIDE
@@ -273,13 +329,6 @@ extension NSTextView {
         // Store column using associated object (mimics Scintilla's internal storage)
         objc_setAssociatedObject(self, &highlightGuideColumnKey, column, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         self.needsDisplay = true
-    }
-    
-    // Helper to get stored bracket positions
-    func getBracketHighlightPositions() -> (pos1: Int?, pos2: Int?) {
-        let pos1 = objc_getAssociatedObject(self, &bracketHighlightPos1Key) as? Int
-        let pos2 = objc_getAssociatedObject(self, &bracketHighlightPos2Key) as? Int
-        return (pos1, pos2)
     }
     
     // Helper to get highlight guide column
@@ -312,9 +361,11 @@ struct TextBuffer {
     
     // Translation of: Buffer::allowBraceMach()
     func allowBraceMatch() -> Bool {
-        // Check if brace matching is allowed (based on file size restrictions)
+        // Check if brace matching is allowed (based on file size restrictions). The
+        // restriction is now cached in AppSettings (F12), and the size uses the O(1) UTF-16
+        // length instead of the O(n) grapheme walk `storage.string.count`.
         let restriction = AppSettings.shared.largeFileRestriction
-        let fileSize = storage.string.count
+        let fileSize = (storage.string as NSString).length
         
         // Check large file restrictions (matching Parameters.cpp logic)
         if restriction.isEnabled {
@@ -337,11 +388,6 @@ enum CommandID {
 // Notification for command state changes
 extension Notification.Name {
     static let commandStateChanged = Notification.Name("commandStateChanged")
-}
-
-// Custom attribute for bracket highlighting
-extension NSAttributedString.Key {
-    static let bracketHighlight = NSAttributedString.Key("NotepadPlusBracketHighlight")
 }
 
 // MARK: - Text Modification APIs (Translation from Editor.cxx)
@@ -373,6 +419,46 @@ extension NSTextView {
             self.textStorage?.replaceCharacters(in: range, with: text)
             self.didChangeText()
         }
+    }
+
+    // Replace every occurrence in `ranges` with `replacement` as ONE batched edit (F46).
+    //
+    // Translation of Notepad++ Replace All: processAll turns OFF all modification notifications
+    // (SCI_SETMODEVENTMASK, 0 at FindReplaceDlg.cpp:3329) for the whole processRange loop of
+    // replaceTarget calls (FindReplaceDlg.cpp:3654-3664), then restores them and posts ONE
+    // document-modified update afterwards (:3391-3396); the caller wraps it in
+    // SCI_BEGINUNDOACTION/ENDUNDOACTION (FindReplaceDlg.cpp:2538-2540) so it is a single undo step.
+    //
+    // The macOS equivalents:
+    //   * shouldChangeText(in:replacementStrings:) registers ONE multi-range undo action, so the
+    //     whole Replace All reverts with a single Cmd+Z.
+    //   * A single textStorage.beginEditing()/endEditing() around all replaceCharacters coalesces
+    //     every edit into ONE NSTextStorageDelegate callback (the Scintilla notification point that
+    //     applyIncrementalEdit resyncs _doc.cb from), and ONE textDidChange after didChangeText().
+    //     That is the SCI_SETMODEVENTMASK 0 suppression: the per-keystroke pipeline (model resync,
+    //     brace match, current-line + smart highlight, gutter/fold render) runs once, not per match,
+    //     turning a multi-minute per-hit hang into a single pass.
+    // Returns the number of occurrences replaced.
+    @discardableResult
+    func replaceAllOccurrences(in ranges: [NSRange], with replacement: String) -> Int {
+        guard let storage = self.textStorage, !ranges.isEmpty else { return 0 }
+
+        // Ascending, so the undo snapshot ranges are well-ordered; apply in reverse so each edit
+        // does not shift the offsets of the edits not yet applied.
+        let ordered = ranges.sorted { $0.location < $1.location }
+        let rangeValues = ordered.map { NSValue(range: $0) }
+        let replacements = Array(repeating: replacement, count: ordered.count)
+
+        guard self.shouldChangeText(inRanges: rangeValues, replacementStrings: replacements) else { return 0 }
+
+        storage.beginEditing()
+        for range in ordered.reversed() {
+            storage.replaceCharacters(in: range, with: replacement)
+        }
+        storage.endEditing()
+        self.didChangeText()
+
+        return ordered.count
     }
 
     // Translation of: SCI_INSERTTEXT

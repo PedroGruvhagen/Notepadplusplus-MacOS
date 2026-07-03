@@ -150,8 +150,7 @@ struct FindInFilesView: View {
                 .foregroundColor(.secondary)
             
             Button("Cancel") {
-                // TODO: Implement search cancellation
-                searchManager.isSearching = false
+                searchManager.cancelSearch()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -187,8 +186,10 @@ struct FindInFilesView: View {
             
             // Result details
             if let selected = selectedResult {
-                FileResultDetailView(result: selected)
-                    .frame(minWidth: 400)
+                FileResultDetailView(result: selected) { filePath, match in
+                    openResult(filePath, match: match)
+                }
+                .frame(minWidth: 400)
             } else {
                 Text("Select a file to view matches")
                     .foregroundColor(.secondary)
@@ -234,6 +235,55 @@ struct FindInFilesView: View {
             )
         }
     }
+
+    // F50: open a result inside THIS editor at the matched line instead of launching the system
+    // default app (the old NSWorkspace.shared.open). Port of Notepad++ opening the found file in the
+    // editor and centring the matched section (FindReplaceDlg.cpp:614/637/663). openDocument reuses
+    // the Phase 6 dedup + file monitor; revealRange selects and centres the match once the tab is on
+    // screen. Callers pass the match to reveal (a double-clicked row's match, or the file's first
+    // match for the Open File button); a nil match is a defensive fallback that reveals line 1.
+    private func openResult(_ filePath: URL, match: LineMatch?) {
+        dismiss()
+        Task {
+            await DocumentManager.shared.openDocument(from: filePath)
+            guard let document = DocumentManager.shared.activeTab?.document else { return }
+            let targetLine = match?.lineNumber ?? 1
+            let matchRanges = match?.matchRanges ?? []
+            let range = FindInFilesView.revealRange(in: document.content,
+                                                    lineNumber: targetLine,
+                                                    matchRanges: matchRanges)
+            document.revealRange(range)
+        }
+    }
+
+    // Map a 1-based line number + line-local match range to a document character range. Counts lines
+    // with .byLines, the SAME Unicode-line-boundary enumeration searchInFile now uses to produce the
+    // line number, so the reveal target and the reported line always agree (including CRLF/CR files,
+    // F50). Selects the exact match when it fits within the line, else the whole line's content.
+    static func revealRange(in content: String, lineNumber: Int, matchRanges: [NSRange]) -> NSRange {
+        let ns = content as NSString
+        var lineContentRange: NSRange?
+        var index = 0
+        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length),
+                               options: [.byLines, .substringNotRequired]) { _, substringRange, _, stop in
+            index += 1
+            if index == lineNumber {
+                lineContentRange = substringRange
+                stop.pointee = true
+            }
+        }
+
+        guard let lineRange = lineContentRange else {
+            return NSRange(location: 0, length: 0)
+        }
+
+        if let first = matchRanges.first,
+           first.location >= 0,
+           first.location + first.length <= lineRange.length {
+            return NSRange(location: lineRange.location + first.location, length: first.length)
+        }
+        return lineRange
+    }
 }
 
 struct FileResultRow: View {
@@ -266,8 +316,10 @@ struct FileResultRow: View {
 
 struct FileResultDetailView: View {
     let result: FileSearchResult
+    // F50: open the file inside this editor (optionally at a specific match), not the system app.
+    let onOpen: (URL, LineMatch?) -> Void
     @State private var selectedMatch: LineMatch?
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // File header
@@ -277,19 +329,26 @@ struct FileResultDetailView: View {
                     .font(.headline)
                 Spacer()
                 Button("Open File") {
-                    NSWorkspace.shared.open(result.filePath)
+                    // Open at the file's first match, like Notepad++ centring the found
+                    // section on activation (FindReplaceDlg.cpp:663). A displayed result always
+                    // has at least one match (searchInFile returns nil when matches is empty).
+                    onOpen(result.filePath, result.matches.first)
                 }
             }
             .padding()
             .background(Color(NSColor.controlBackgroundColor))
-            
+
             Divider()
-            
-            // Matches list
+
+            // Matches list. Double-click a match to open the file at that line (F50).
             List(selection: $selectedMatch) {
                 ForEach(result.matches) { match in
                     MatchRow(match: match)
                         .tag(match)
+                        .contentShape(Rectangle())
+                        .onTapGesture(count: 2) {
+                            onOpen(result.filePath, match)
+                        }
                 }
             }
         }

@@ -120,6 +120,11 @@ class AppSettings: ObservableObject {
     @AppStorage("checkForUpdates") var checkForUpdates: Bool = true
     @AppStorage("updateInterval") var updateIntervalDays: Int = 15
     @AppStorage("detectFileChanges") var detectFileChanges: Bool = true
+    // Translation of the cdAutoUpdate bit of NppGUI._fileAutoDetection (default cdEnabledNew =
+    // 0x02, so cdAutoUpdate = 0x04 is OFF by default; NppConstants.h:188-194, Parameters.h:728).
+    // When OFF, an external change to a CLEAN buffer prompts before reloading (Notepad++'s
+    // "Update Silently" preference, unchecked by default). A DIRTY buffer always prompts.
+    @AppStorage("updateSilently") var updateSilently: Bool = false
     
     // MARK: - Editor Settings
     @AppStorage("fontName") var fontName: String = "Menlo"
@@ -191,15 +196,29 @@ class AppSettings: ObservableObject {
     
     // MARK: - Performance Settings (Translation of LargeFileRestriction from Parameters.h line 1007)
     // This is stored as a single JSON object to match original NppGUI._largeFileRestriction structure
+    // Cached decoded restriction. The getter is hit on every keystroke and caret move (via
+    // TextBuffer.allowBraceMatch), and previously decoded JSON from UserDefaults on each
+    // call. Cache the decoded value on first read and invalidate it in the setter, keeping
+    // the on-disk JSON persistence unchanged (F12).
+    private var _cachedLargeFileRestriction: LargeFileRestriction?
+
     var largeFileRestriction: LargeFileRestriction {
         get {
-            if let data = defaults.data(forKey: "largeFileRestriction"),
-               let restriction = try? JSONDecoder().decode(LargeFileRestriction.self, from: data) {
-                return restriction
+            if let cached = _cachedLargeFileRestriction {
+                return cached
             }
-            return LargeFileRestriction() // Return default
+            let restriction: LargeFileRestriction
+            if let data = defaults.data(forKey: "largeFileRestriction"),
+               let decoded = try? JSONDecoder().decode(LargeFileRestriction.self, from: data) {
+                restriction = decoded
+            } else {
+                restriction = LargeFileRestriction() // Default
+            }
+            _cachedLargeFileRestriction = restriction
+            return restriction
         }
         set {
+            _cachedLargeFileRestriction = newValue  // keep the cache in step with the setter
             if let data = try? JSONEncoder().encode(newValue) {
                 defaults.set(data, forKey: "largeFileRestriction")
                 objectWillChange.send()

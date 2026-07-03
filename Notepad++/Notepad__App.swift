@@ -11,6 +11,7 @@ import SwiftUI
 struct Notepad__App: App {
     @StateObject private var backupManager = BackupManager.shared
     @StateObject private var documentManager = DocumentManager.shared
+    @StateObject private var menuState = MenuCommandState.shared
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
@@ -151,6 +152,9 @@ struct Notepad__App: App {
                     NotificationCenter.default.post(name: .jumpToMatchingBracket, object: nil)
                 }
                 .keyboardShortcut("m", modifiers: .command)
+                // F57: greyed out unless the caret is on a matching brace, driven by the real
+                // enableCommand(IDM_SEARCH_GOTOMATCHINGBRACE, ...) state (Notepad_plus.cpp:3020).
+                .disabled(!menuState.canGotoMatchingBracket)
                 
                 Divider()
                 
@@ -363,10 +367,52 @@ struct Notepad__App: App {
     }
 }
 
+// MARK: - Menu command enable state (F57)
+// Notepad++ greys menu items via enableCommand -> ::EnableMenuItem (Notepad_plus.cpp:2521); braceMatch
+// enables/disables "Go to Matching Bracket" as the caret moves on/off a matching brace
+// (Notepad_plus.cpp:3020). The Swift editor already posts .commandStateChanged from enableCommand
+// (NSTextView+ScintillaAPI.swift:334) but nothing observed it, so the item never greyed out. This
+// observable turns those posts into a @Published flag the SwiftUI menu binds its .disabled() to.
+@MainActor
+final class MenuCommandState: ObservableObject {
+    static let shared = MenuCommandState()
+    @Published var canGotoMatchingBracket = false
+
+    private init() {
+        NotificationCenter.default.addObserver(forName: .commandStateChanged, object: nil, queue: .main) { [weak self] note in
+            guard let enabled = note.userInfo?["enabled"] as? Bool,
+                  let command = note.userInfo?["commandID"] as? CommandID else { return }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                // Only publish on an actual change: braceMatch posts this on every caret move, and an
+                // unconditional assignment would rebuild the menu each keystroke/arrow-key.
+                if case .searchGotoMatchingBrace = command, self.canGotoMatchingBracket != enabled {
+                    self.canGotoMatchingBracket = enabled
+                }
+            }
+        }
+    }
+}
+
 // MARK: - AppDelegate for handling file opening from Finder
 class AppDelegate: NSObject, NSApplicationDelegate {
-    weak var documentManager: DocumentManager?
+    // Assigned in ContentView.onAppear. Kept only as an extra drain trigger: opens go through
+    // DocumentManager.shared directly so a launch URL is never dropped while this weak
+    // reference is still nil (F28).
+    weak var documentManager: DocumentManager? {
+        didSet { drainPendingLaunchURLs() }
+    }
     private var hasCheckedForUntitled = false
+
+    // Launch/open URLs are queued the instant AppKit delivers them and drained through the
+    // shared DocumentManager, independent of when the SwiftUI window wiring runs. AppKit can
+    // deliver application(_:open:) for a double-clicked file before applicationDidFinishLaunching
+    // and before ContentView.onAppear assigns documentManager; the previous code read a
+    // not-yet-wired weak var and silently dropped every such URL. Translation of the never-drop
+    // contract of loadCommandlineParams (Notepad_plus.cpp:6893), where command-line files are
+    // opened in the launch path after the core is initialised and are never lost to UI timing (F28).
+    private var pendingLaunchURLs: [URL] = []
+    private var isDrainingLaunchURLs = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Disable window state restoration BEFORE anything happens
@@ -374,11 +420,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        // Handle files dropped on dock icon or opened via "Open With"
+        // Files dropped on the dock icon or opened via Finder / "Open With". Queue them and
+        // drain immediately; never drop a URL because the SwiftUI wiring has not run yet.
+        pendingLaunchURLs.append(contentsOf: urls)
+        drainPendingLaunchURLs()
+    }
+
+    // Drains queued launch URLs through the shared DocumentManager. isDrainingLaunchURLs is set
+    // synchronously so applicationDidFinishLaunching can tell a launch open is in flight and skip
+    // the fresh-untitled fallback. The lone-clean-untitled guard in openDocument(from:) (F27)
+    // keeps every ordering correct: if an untitled was created first, the opened file replaces it.
+    private func drainPendingLaunchURLs() {
+        guard !pendingLaunchURLs.isEmpty, !isDrainingLaunchURLs else { return }
+        isDrainingLaunchURLs = true
+        let urls = pendingLaunchURLs
+        pendingLaunchURLs.removeAll()
         Task { @MainActor in
             for url in urls {
-                await documentManager?.openDocument(from: url)
+                await DocumentManager.shared.openDocument(from: url)
             }
+            isDrainingLaunchURLs = false
+            // Anything queued while we were awaiting gets drained on the next pass.
+            drainPendingLaunchURLs()
         }
     }
 
@@ -388,8 +451,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // Guard Cmd+Q / Quit so unsaved documents prompt to save first (NppIO.cpp fileCloseAll).
+    // Uses DocumentManager.shared directly so the prompt is never skipped by a nil weak var.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let manager = documentManager, manager.hasModifiedDocuments else {
+        let manager = DocumentManager.shared
+        guard manager.hasModifiedDocuments else {
             return .terminateNow
         }
         Task { @MainActor in
@@ -400,19 +465,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Don't restore session - app should start fresh every time.
-        // No timing sleep: openDocument(from:) already replaces a lone empty untitled
-        // buffer when a real file is opened (NppIO.cpp lone-empty handling), so both
-        // launch orderings are correct without any race:
-        //   (a) didFinishLaunching creates untitled first, then application(_:open:)
-        //       replaces it with the real file.
-        //   (b) application(_:open:) runs first, then didFinishLaunching sees a
-        //       non-empty tabs array and creates nothing.
+        // Drain any launch URLs that AppKit delivered before launch finished, so a double-clicked
+        // file is opened and never dropped (loadCommandlineParams, Notepad_plus.cpp:6893).
+        // openDocument(from:) replaces a lone clean untitled when a real file is opened (F27 guard).
+        drainPendingLaunchURLs()
+
         guard !hasCheckedForUntitled else { return }
         hasCheckedForUntitled = true
 
-        if let manager = documentManager, manager.tabs.isEmpty {
-            manager.createNewDocument()
+        Task { @MainActor in
+            // F35: restore the previous session (crash recovery / remember-last-session) BEFORE
+            // falling back to a fresh untitled, but never when a launch-file open is in flight -
+            // the double-clicked file wins, exactly as Notepad++ loads the session in the startup
+            // path before command-line files. The periodic snapshot timer (BackupManager) is what
+            // makes this survive a crash or force-quit, where appWillTerminate never fires.
+            if AppSettings.shared.rememberLastSession,
+               !self.isDrainingLaunchURLs,
+               self.pendingLaunchURLs.isEmpty,
+               DocumentManager.shared.tabs.isEmpty {
+                await BackupManager.shared.restoreSession()
+            }
+
+            // Only fall back to a fresh untitled when nothing else populated tabs (no launch file,
+            // no restored session).
+            if !self.isDrainingLaunchURLs, self.pendingLaunchURLs.isEmpty, DocumentManager.shared.tabs.isEmpty {
+                DocumentManager.shared.createNewDocument()
+            }
         }
     }
 }
@@ -439,17 +517,50 @@ struct WindowCloseGuard: NSViewRepresentable {
     final class Coordinator: NSObject, NSWindowDelegate {
         weak var window: NSWindow?
         private var isClosing = false
+        // F08: SwiftUI installs its own NSWindowDelegate (AppKitWindowController) that handles
+        // ~19 scene-bookkeeping callbacks (resize policy, zoom frame, fullscreen options,
+        // restorable state, close bookkeeping). Keep a reference so we can forward every selector
+        // we do not implement to it. weak: the controller is retained by the window/scene, so a
+        // strong reference here would create a retain cycle.
+        private weak var previousDelegate: NSWindowDelegate?
 
         func attach(to window: NSWindow?) {
             guard let window, self.window == nil else { return }
             self.window = window
+            // F08: keep SwiftUI's own window delegate so its scene-bookkeeping callbacks (resize,
+            // zoom, fullscreen, restorable state, close bookkeeping) keep firing; we intercept only
+            // windowShouldClose. Forwarding is via responds(to:)/forwardingTarget(for:) below. This
+            // restores the SwiftUI WindowGroup delegate chain while preserving the WM_CLOSE ->
+            // fileCloseAll save prompt (NppBigSwitch.cpp:2710, NppIO.cpp:1377-1394) that
+            // windowShouldClose implements. No direct Scintilla counterpart; AppKit integration hygiene.
+            if let existing = window.delegate, existing !== self {
+                previousDelegate = existing
+            }
             window.delegate = self
+        }
+
+        // F08: forward every NSWindowDelegate selector we do not implement to SwiftUI's original
+        // delegate, overriding ONLY windowShouldClose (below).
+        override func responds(to aSelector: Selector!) -> Bool {
+            if super.responds(to: aSelector) { return true }
+            return previousDelegate?.responds(to: aSelector) ?? false
+        }
+
+        override func forwardingTarget(for aSelector: Selector!) -> Any? {
+            if let previousDelegate, previousDelegate.responds(to: aSelector) { return previousDelegate }
+            return super.forwardingTarget(for: aSelector)
         }
 
         func windowShouldClose(_ sender: NSWindow) -> Bool {
             if isClosing { return true }
             Task { @MainActor in
                 if await DocumentManager.shared.confirmCloseAllForQuit() {
+                    // The prompts have been answered (saved or discarded). Actually close the
+                    // buffers and leave one fresh untitled, matching WM_CLOSE -> fileCloseAll
+                    // (NppBigSwitch.cpp:2710, NppIO.cpp:1377-1394). Without this the discarded
+                    // dirty tabs survive and the next close re-prompts for documents the user
+                    // already declined (F30).
+                    DocumentManager.shared.resetToFreshUntitled()
                     isClosing = true
                     sender.close()
                 }

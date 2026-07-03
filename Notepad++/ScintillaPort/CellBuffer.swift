@@ -51,7 +51,15 @@ class CellBuffer {
     // Translation of member variables from CellBuffer.h line 76-91
     private var hasStyles: Bool = false
     private var largeDocument: Bool = false
-    private var substance: String = ""  // Simplified: using String instead of SplitVector
+    // Substance is stored as UTF-16 code units so that CharAt/Length are O(1) index
+    // operations, mirroring Scintilla's SplitVector<char> whose ValueAt is O(1)
+    // (CellBuffer.cxx:845 `substance.ValueAt(position)`). A Swift String backed by UTF-8
+    // has no O(1) random access by offset, so `substance.index(offsetBy:)` walks were
+    // O(position); the previous representation made CharAt O(n) and setText O(chars x
+    // lines). Positions/line starts are therefore UTF-16 offsets, the same coordinate
+    // space AppKit's NSTextView (NSString) uses, and the same one Scintilla's line vector
+    // maintains via startsUTF16 (CellBuffer.cxx:208,229,278). F10.
+    private var substance: [unichar] = []
     private var style: Data = Data()    // Simplified: using Data for style bytes
     private var readOnly: Bool = false
     private var utf8Substance: Bool = true
@@ -72,7 +80,7 @@ class CellBuffer {
     init(initialLength: Int = 0, hasStyles: Bool = false) {
         self.hasStyles = hasStyles
         self.largeDocument = initialLength > Int32.max
-        self.substance = ""
+        self.substance = []
         if hasStyles {
             self.style = Data(count: initialLength)
         }
@@ -129,33 +137,42 @@ class CellBuffer {
     
     // MARK: - Content Access (Translation of character access methods)
     
-    /// Translation of Length() from CellBuffer.h
+    /// Translation of Length() from CellBuffer.h. O(1): the count of stored UTF-16 units.
     var length: Int {
         return substance.count
     }
-    
-    /// Translation of CharAt() - simplified version
+
+    /// Translation of CharAt() (CellBuffer.cxx:845 `substance.ValueAt(position)`), now
+    /// O(1) by direct UTF-16 index instead of the previous O(position) String index walk.
     func charAt(_ position: Int) -> Character? {
         guard position >= 0 && position < substance.count else { return nil }
-        let index = substance.index(substance.startIndex, offsetBy: position)
-        return substance[index]
+        let unit = substance[position]
+        if let scalar = Unicode.Scalar(unit) {
+            return Character(scalar)
+        }
+        // Lone UTF-16 surrogate half (one code unit of a non-BMP scalar). Return a
+        // sentinel that never equals an ASCII brace so brace matching stays correct;
+        // Scintilla's ValueAt likewise returns a raw code unit, not a whole character.
+        return "\u{FFFD}"
     }
-    
-    /// Translation of UCharAt() for byte access
+
+    /// Translation of UCharAt() for byte access. O(1) UTF-16 index; returns 0 above the
+    /// single-byte range, matching the previous ASCII-only behavior for callers.
     func uCharAt(_ position: Int) -> UInt8 {
         guard position >= 0 && position < substance.count else { return 0 }
-        let index = substance.index(substance.startIndex, offsetBy: position)
-        return substance[index].asciiValue ?? 0
+        let unit = substance[position]
+        return unit <= 0xFF ? UInt8(unit) : 0
     }
-    
-    /// Translation of GetCharRange() from CellBuffer.cxx
+
+    /// Translation of GetCharRange() from CellBuffer.cxx. Builds a String from the stored
+    /// UTF-16 slice.
     func getCharRange(position: Int, length: Int) -> String {
-        guard position >= 0 && position + length <= substance.count else {
+        guard position >= 0 && length >= 0 && position + length <= substance.count else {
             return ""
         }
-        let startIndex = substance.index(substance.startIndex, offsetBy: position)
-        let endIndex = substance.index(startIndex, offsetBy: length)
-        return String(substance[startIndex..<endIndex])
+        guard length > 0 else { return "" }
+        let units = Array(substance[position..<(position + length)])
+        return String(utf16CodeUnits: units, count: units.count)
     }
     
     /// Translation of StyleAt()
@@ -172,15 +189,18 @@ class CellBuffer {
         style[position] = styleValue
     }
     
-    /// Set text content
+    /// Set text content. Stores the UTF-16 units and rebuilds the line-start vector in a
+    /// SINGLE O(n) scan (see updateLineStarts), not the previous O(chars x lines)
+    /// text.distance walk. Faithful to CellBuffer.cxx BasicInsertString (:872-925): here
+    /// the whole buffer is the inserted text starting at position 0.
     func setText(_ newText: String) {
-        substance = newText
+        substance = Array(newText.utf16)
         if hasStyles {
-            style = Data(repeating: 0, count: newText.count)
+            style = Data(count: substance.count)
         }
-        // Reset line starts
+        // Reset line starts, then scan once for the newlines.
         lineStarts = [0]
-        updateLineStarts(from: 0, delta: newText.count, text: newText)
+        updateLineStarts(from: 0, delta: substance.count, text: newText)
     }
     
     // MARK: - Modification (Translation of insert/delete methods)
@@ -191,22 +211,33 @@ class CellBuffer {
         set { readOnly = newValue }
     }
     
-    /// Translation of BasicInsertString() from CellBuffer.cxx line 752
-    private func basicInsertString(position: Int, s: String) {
-        let insertLength = s.count
+    /// Translation of BasicInsertString() from CellBuffer.cxx line 840. Inserts EXACTLY
+    /// `insertLength` UTF-16 units from `s` (CellBuffer.cxx:867
+    /// `substance.InsertFromArray(position, s, 0, insertLength)`), so a caller passing a
+    /// length shorter than `s` inserts only that prefix, honouring the (position, s,
+    /// insertLength) contract instead of ignoring insertLength and inserting all of `s`.
+    private func basicInsertString(position: Int, s: String, insertLength: Int) {
         guard insertLength > 0 else { return }
-        
-        // Insert into substance
-        let index = substance.index(substance.startIndex, offsetBy: min(position, substance.count))
-        substance.insert(contentsOf: s, at: index)
-        
-        // Update line starts
-        updateLineStarts(from: position, delta: insertLength, text: s)
-        
+
+        let allUnits = Array(s.utf16)
+        // Insert exactly insertLength units (a prefix of s), never more than s holds.
+        let units = allUnits.count <= insertLength ? allUnits : Array(allUnits.prefix(insertLength))
+        guard !units.isEmpty else { return }
+
+        // Insert the UTF-16 units into substance (CellBuffer.cxx:867
+        // substance.InsertFromArray).
+        let clampedPos = min(position, substance.count)
+        substance.insert(contentsOf: units, at: clampedPos)
+
+        // Update line starts (CellBuffer.cxx:872-925: shift lines after, scan inserted
+        // text once for line ends). Scan exactly the inserted units, not all of `s`.
+        let insertedText = units.count == allUnits.count ? s : String(utf16CodeUnits: units, count: units.count)
+        updateLineStarts(from: clampedPos, delta: units.count, text: insertedText)
+
         // Handle styles if needed
         if hasStyles {
-            let styleBytes = Data(repeating: 0, count: insertLength)
-            style.insert(contentsOf: styleBytes, at: min(position, style.count))
+            let styleBytes = Data(count: units.count)
+            style.insert(contentsOf: styleBytes, at: min(clampedPos, style.count))
         }
     }
     
@@ -218,12 +249,10 @@ class CellBuffer {
         
         // Get text being deleted for line tracking
         let deletedText = getCharRange(position: position, length: deleteLength)
-        
-        // Delete from substance
-        let startIndex = substance.index(substance.startIndex, offsetBy: position)
-        let endIndex = substance.index(startIndex, offsetBy: deleteLength)
-        substance.removeSubrange(startIndex..<endIndex)
-        
+
+        // Delete the UTF-16 units from substance
+        substance.removeSubrange(position..<(position + deleteLength))
+
         // Update line starts
         updateLineStarts(from: position, delta: -deleteLength, text: deletedText)
         
@@ -237,26 +266,30 @@ class CellBuffer {
     /// Translation of InsertString() with undo from CellBuffer.cxx line 942
     func insertString(position: Int, s: String, insertLength: Int? = nil) {
         guard !readOnly else { return }
-        
-        let length = insertLength ?? s.count
+
+        // Length is measured in UTF-16 units to match the substance coordinate space, and
+        // is clamped to what `s` actually holds so the recorded undo lenData equals the
+        // number of units actually inserted (basicInsertString inserts exactly `length`).
+        let available = s.utf16.count
+        let length = min(insertLength ?? available, available)
         guard length > 0 else { return }
-        
+
         // Record undo action if collecting
         if collectingUndo {
             let action = Action(
                 at: .insert,
                 mayCoalesce: false,
                 position: position,
-                data: String(s.prefix(length)),
+                data: s,
                 lenData: length
             )
             undoHistory.append(action)
             // Clear redo stack on new action
             redoHistory.removeAll()
         }
-        
-        // Perform the insertion
-        basicInsertString(position: position, s: String(s.prefix(length)))
+
+        // Perform the insertion of exactly `length` units.
+        basicInsertString(position: position, s: s, insertLength: length)
     }
     
     /// Translation of DeleteChars() with undo from CellBuffer.cxx line 982
@@ -283,7 +316,24 @@ class CellBuffer {
     }
     
     // MARK: - Undo/Redo (Simplified translation of undo system)
-    
+
+    /// Translation of SetUndoCollection()/IsCollectingUndo() from CellBuffer.cxx line
+    /// 1112-1120 (`collectingUndo = collectUndo; uh->DropUndoSequence();`). Turning
+    /// collection OFF also drops any accumulated history, mirroring Scintilla dropping the
+    /// pending undo sequence, so a buffer used purely as a text/line mirror (undo owned
+    /// elsewhere) never accumulates an unbounded undoHistory.
+    var isCollectingUndo: Bool {
+        get { collectingUndo }
+        set {
+            collectingUndo = newValue
+            if !newValue {
+                undoHistory.removeAll()
+                redoHistory.removeAll()
+                savePoint = 0
+            }
+        }
+    }
+
     /// Translation of SetSavePoint() from CellBuffer.cxx line 633
     func setSavePoint() {
         savePoint = undoHistory.count
@@ -313,12 +363,12 @@ class CellBuffer {
         case .insert:
             basicDeleteChars(position: action.position, deleteLength: action.lenData)
         case .remove:
-            basicInsertString(position: action.position, s: action.data)
+            basicInsertString(position: action.position, s: action.data, insertLength: action.lenData)
         case .container:
             break  // Not implemented in this simplified version
         }
         collectingUndo = true
-        
+
         redoHistory.append(action)
     }
     
@@ -329,14 +379,14 @@ class CellBuffer {
         collectingUndo = false
         switch action.at {
         case .insert:
-            basicInsertString(position: action.position, s: action.data)
+            basicInsertString(position: action.position, s: action.data, insertLength: action.lenData)
         case .remove:
             basicDeleteChars(position: action.position, deleteLength: action.lenData)
         case .container:
             break  // Not implemented in this simplified version
         }
         collectingUndo = true
-        
+
         undoHistory.append(action)
     }
     
@@ -345,37 +395,49 @@ class CellBuffer {
     private func updateLineStarts(from position: Int, delta: Int, text: String) {
         // Find which line is affected
         let lineAffected = lineFromPosition(position)
-        
-        // Update positions of lines after the change
-        for i in (lineAffected + 1)..<lineStarts.count {
-            lineStarts[i] += delta
-        }
-        
-        // Handle new lines in inserted text
+
+        // Handle new lines in inserted text with a SINGLE forward scan over the inserted
+        // UTF-16 units, tracking a running index `i` and recording (position + i) + 1 for
+        // each '\n' (CellBuffer.cxx:783,914-925). This replaces the previous
+        // text.distance(from: startIndex, to: ...) call, which re-walked the string from
+        // the start for every newline and made setText O(chars x lines). '\n' is always a
+        // single UTF-16 unit (0x000A), and iterating text.utf16 visits units in the same
+        // order they were stored into substance, so `i` matches the substance offset.
         if delta > 0 {
-            var newLinePositions: [Int] = []
-            var searchStart = text.startIndex
-            while let range = text[searchStart...].range(of: "\n") {
-                let offset = text.distance(from: text.startIndex, to: range.lowerBound) + 1
-                newLinePositions.append(position + offset)
-                searchStart = range.upperBound
+            // Point all the lines after the change point further along in the buffer
+            // (CellBuffer.cxx:874 `plv->InsertText(lineInsert-1, insertLength)`).
+            for i in (lineAffected + 1)..<lineStarts.count {
+                lineStarts[i] += delta
             }
-            
+
+            var newLinePositions: [Int] = []
+            var i = 0
+            for unit in text.utf16 {
+                if unit == 0x000A {  // '\n'
+                    newLinePositions.append(position + i + 1)
+                }
+                i += 1
+            }
+
             // Insert new line starts
             if !newLinePositions.isEmpty {
                 lineStarts.insert(contentsOf: newLinePositions, at: lineAffected + 1)
             }
         }
-        // Handle deleted lines
+        // Handle deletion. Faithful to BasicDeleteChars (CellBuffer.cxx:1011-1075): the
+        // later line starts are shifted back by deleteLength (`plv->InsertText(lineRemove-1,
+        // -(deleteLength))`, :1028) and every line whose start fell inside the deleted span
+        // is removed (the RemoveLine calls at :1070-1081 for line ends within the span).
+        // The removal MUST happen on the UNSHIFTED line starts: the previous code shifted
+        // all later starts first and then compared them against the unshifted bounds, so it
+        // removed the wrong entries.
         else if delta < 0 {
-            var linesToRemove: [Int] = []
-            for (index, lineStart) in lineStarts.enumerated() {
-                if lineStart > position && lineStart <= position - delta {
-                    linesToRemove.append(index)
-                }
-            }
-            for index in linesToRemove.reversed() {
-                lineStarts.remove(at: index)
+            let end = position - delta      // == position + deleteLength
+            // Remove starts that began strictly inside the deleted span (position, end].
+            lineStarts.removeAll { $0 > position && $0 <= end }
+            // Shift the surviving later starts back by deleteLength (delta < 0).
+            for i in lineStarts.indices where lineStarts[i] > position {
+                lineStarts[i] += delta
             }
         }
     }

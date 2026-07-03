@@ -163,6 +163,22 @@ class LanguageManager {
     var availableLanguages: [Lang] {
         return _langList
     }
+
+    // F54: resolve a LanguageDefinition from a UI language display name (the New Document default
+    // language picker persists Lang.name). Returns nil for "Plain Text" / unknown -> a plain buffer.
+    func languageDefinition(named displayName: String) -> LanguageDefinition? {
+        guard let lang = _langList.first(where: { $0.name == displayName }) else { return nil }
+        return lang.toLanguageDefinition()
+    }
+
+    // F53: LangType behind a LanguageDefinition (matched through the same toLanguageDefinition().name
+    // the Document carries), so the auto-completion engine can load that language's keywords.
+    func langType(forDefinitionName name: String) -> LangType? {
+        for lang in _langList where lang.toLanguageDefinition()?.name == name {
+            return lang._langID
+        }
+        return nil
+    }
 }
 
 // XML Parser delegate for langs.model.xml - Translation of TinyXML parsing logic

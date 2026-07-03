@@ -31,35 +31,43 @@ enum SCE_P {
 
 struct ScintillaLexerPort {
     
-    // Helper function to highlight pattern
-    static func highlightPattern(_ pattern: String, in text: String, textStorage: NSTextStorage, color: NSColor) {
-        let range = NSRange(location: 0, length: text.count)
-        let regex = try? NSRegularExpression(pattern: "\\b\(NSRegularExpression.escapedPattern(for: pattern))\\b", options: [])
-        let matches = regex?.matches(in: text, options: [], range: range) ?? []
-        for match in matches {
+    // Highlight a whole keyword list with ONE combined \b(?:kw1|kw2|...)\b regex over the
+    // target range, replacing the previous per-keyword whole-document regex (F25). The
+    // combined regex is compiled once per call instead of once per keyword.
+    static func highlightKeywords(_ keywords: [String], in text: String, textStorage: NSTextStorage, color: NSColor, range: NSRange) {
+        guard !keywords.isEmpty else { return }
+        let alternation = keywords.map { NSRegularExpression.escapedPattern(for: $0) }.joined(separator: "|")
+        guard let regex = try? NSRegularExpression(pattern: "\\b(?:\(alternation))\\b", options: []) else { return }
+        for match in regex.matches(in: text, options: [], range: range) {
             textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
         }
     }
-    
-    // Direct port of ScintillaEditView::setPythonLexer()
-    static func applyPythonHighlighting(to textStorage: NSTextStorage, text: String, keywords0: [String], keywords1: [String]) {
-        // Port of execute(SCI_STYLECLEARALL) - reset all styles
-        let fullRange = NSRange(location: 0, length: text.count)
-        textStorage.removeAttribute(.foregroundColor, range: fullRange)
-        textStorage.addAttribute(.foregroundColor, value: NSColor.textColor, range: fullRange)
-        
-        // Port of Python lexer behavior
-        let lines = text.components(separatedBy: .newlines)
-        var currentPos = 0
-        
-        for line in lines {
-            lexPythonLine(line: line, at: currentPos, textStorage: textStorage, keywords0: keywords0, keywords1: keywords1)
-            currentPos += line.count + 1 // +1 for newline
+
+    // Direct port of ScintillaEditView::setPythonLexer(). `range` limits styling to the
+    // visible range at open / tab switch (F25); nil styles the whole document.
+    static func applyPythonHighlighting(to textStorage: NSTextStorage, text: String, range: NSRange? = nil, keywords0: [String], keywords1: [String]) {
+        let nsText = text as NSString
+        let target = range ?? NSRange(location: 0, length: nsText.length)
+        guard target.length > 0 else { return }
+
+        // Port of execute(SCI_STYLECLEARALL) scoped to the target range - reset styles.
+        textStorage.removeAttribute(.foregroundColor, range: target)
+        textStorage.addAttribute(.foregroundColor, value: NSColor.textColor, range: target)
+
+        let kw0 = Set(keywords0)
+        let kw1 = Set(keywords1)
+
+        // Port of Python lexer line processing, iterating only the lines intersecting the
+        // target range. UTF-16 line positions (enumerateSubstrings byLines) line up with
+        // the NSTextStorage, unlike the previous grapheme-count line accumulator.
+        nsText.enumerateSubstrings(in: target, options: [.byLines]) { line, lineRange, _, _ in
+            guard let line else { return }
+            lexPythonLine(line: line, at: lineRange.location, textStorage: textStorage, keywords0: kw0, keywords1: kw1)
         }
     }
-    
+
     // Direct port of Scintilla Python lexer line processing
-    private static func lexPythonLine(line: String, at position: Int, textStorage: NSTextStorage, keywords0: [String], keywords1: [String]) {
+    private static func lexPythonLine(line: String, at position: Int, textStorage: NSTextStorage, keywords0: Set<String>, keywords1: Set<String>) {
         var i = 0
         let chars = Array(line)
         
@@ -147,36 +155,39 @@ struct ScintillaLexerPort {
     
     // Port for other languages would go here following same pattern from Notepad++
     /// Translation of ScintillaEditView::setJsLexer() from ScintillaEditView.cpp line 1217-1298
-    static func applyJavaScriptHighlighting(to textStorage: NSTextStorage, text: String, keywords: [String]) {
+    static func applyJavaScriptHighlighting(to textStorage: NSTextStorage, text: String, range: NSRange? = nil, keywords: [String]) {
         // Line 1221: setLexerFromLangID(L_JAVASCRIPT)
         // Apply JavaScript-specific lexer rules
-        
-        let fullRange = NSRange(location: 0, length: text.count)
-        
+
+        // `fullRange` is the target styling range: the visible range at open / tab switch
+        // (F25), or the whole document when nil. UTF-16 length, never grapheme count, so
+        // regex ranges match the NSTextStorage.
+        let nsText = text as NSString
+        let fullRange = range ?? NSRange(location: 0, length: nsText.length)
+        guard fullRange.length > 0 else { return }
+
         // Remove existing attributes
         textStorage.removeAttribute(.foregroundColor, range: fullRange)
         textStorage.removeAttribute(.font, range: fullRange)
-        
+
         // Set default attributes
         let defaultFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         textStorage.addAttribute(.font, value: defaultFont, range: fullRange)
         textStorage.addAttribute(.foregroundColor, value: NSColor.textColor, range: fullRange)
-        
+
         // Line 1286-1296: Map JavaScript token types to C++ lexer styles
         // Translation of style mapping from old JS embedded lexer to C++ lexer
-        
-        // Keywords (SCE_HJ_KEYWORD -> SCE_C_WORD)
+
+        // Keywords (SCE_HJ_KEYWORD -> SCE_C_WORD): ONE combined regex over the range (F25)
         let jsKeywords = ["async", "await", "break", "case", "catch", "class", "const", "continue",
                           "debugger", "default", "delete", "do", "else", "export", "extends",
                           "finally", "for", "function", "if", "import", "in", "instanceof",
                           "let", "new", "return", "super", "switch", "this", "throw", "try",
                           "typeof", "var", "void", "while", "with", "yield"]
-        
-        for keyword in jsKeywords {
-            ScintillaLexerPort.highlightPattern(keyword, in: text, textStorage: textStorage, 
-                           color: NSColor(red: 0, green: 0, blue: 1, alpha: 1)) // Blue for keywords
-        }
-        
+
+        highlightKeywords(jsKeywords, in: text, textStorage: textStorage,
+                          color: NSColor(red: 0, green: 0, blue: 1, alpha: 1), range: fullRange)
+
         // Line 1294: SCE_HJ_DOUBLESTRING -> SCE_C_STRING
         // Strings with double quotes
         let doubleQuotePattern = #""[^"\\]*(?:\\.[^"\\]*)*""#
@@ -250,21 +261,25 @@ struct ScintillaLexerPort {
     }
     
     /// Translation of ScintillaEditView::setCppLexer() from ScintillaEditView.cpp line 1148-1215
-    static func applyCppHighlighting(to textStorage: NSTextStorage, text: String, keywords: [String]) {
+    static func applyCppHighlighting(to textStorage: NSTextStorage, text: String, range: NSRange? = nil, keywords: [String]) {
         // Line 1155: setLexerFromLangID(L_CPP)
         // Apply C++ specific lexer rules
-        
-        let fullRange = NSRange(location: 0, length: text.count)
-        
+
+        // `fullRange` is the target styling range: the visible range at open / tab switch
+        // (F25), or the whole document when nil. UTF-16 length, never grapheme count.
+        let nsText = text as NSString
+        let fullRange = range ?? NSRange(location: 0, length: nsText.length)
+        guard fullRange.length > 0 else { return }
+
         // Remove existing attributes
         textStorage.removeAttribute(.foregroundColor, range: fullRange)
         textStorage.removeAttribute(.font, range: fullRange)
-        
+
         // Set default attributes
         let defaultFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         textStorage.addAttribute(.font, value: defaultFont, range: fullRange)
         textStorage.addAttribute(.foregroundColor, value: NSColor.textColor, range: fullRange)
-        
+
         // Line 1199: SCI_SETKEYWORDS, 0 - C++ instructions/keywords
         let cppKeywords = ["alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor",
                           "bool", "break", "case", "catch", "char", "char16_t", "char32_t", "class",
@@ -278,23 +293,20 @@ struct ScintillaLexerPort {
                           "thread_local", "throw", "true", "try", "typedef", "typeid", "typename",
                           "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t",
                           "while", "xor", "xor_eq"]
-        
-        for keyword in cppKeywords {
-            ScintillaLexerPort.highlightPattern(keyword, in: text, textStorage: textStorage,
-                           color: NSColor(red: 0, green: 0, blue: 1, alpha: 1)) // Blue for keywords
-        }
-        
+
+        // ONE combined regex over the range instead of a whole-document regex per keyword (F25)
+        highlightKeywords(cppKeywords, in: text, textStorage: textStorage,
+                          color: NSColor(red: 0, green: 0, blue: 1, alpha: 1), range: fullRange)
+
         // Line 1200: SCI_SETKEYWORDS, 1 - C++ types
         let cppTypes = ["int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t",
                        "uint32_t", "uint64_t", "size_t", "ptrdiff_t", "intptr_t", "uintptr_t",
                        "string", "wstring", "vector", "map", "set", "list", "deque", "queue",
                        "stack", "array", "unique_ptr", "shared_ptr", "weak_ptr"]
-        
-        for type in cppTypes {
-            ScintillaLexerPort.highlightPattern(type, in: text, textStorage: textStorage,
-                           color: NSColor(red: 0, green: 0.5, blue: 0.5, alpha: 1)) // Teal for types
-        }
-        
+
+        highlightKeywords(cppTypes, in: text, textStorage: textStorage,
+                          color: NSColor(red: 0, green: 0.5, blue: 0.5, alpha: 1), range: fullRange)
+
         // Preprocessor directives (Line 1210: fold.preprocessor)
         let preprocessorPattern = #"^\s*#\s*\w+"#
         if let regex = try? NSRegularExpression(pattern: preprocessorPattern, options: [.anchorsMatchLines]) {

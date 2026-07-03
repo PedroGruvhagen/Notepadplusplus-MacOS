@@ -79,7 +79,9 @@ struct SearchHistoryItem: Identifiable, Codable {
 
 // MARK: - Search Configuration
 
-struct FindInFilesConfiguration {
+// Sendable: a value snapshot captured into the detached Find-in-Files task (F47). All members are
+// value types (URL?, Bool, [String], Int), so value semantics make each captured copy independent.
+struct FindInFilesConfiguration: Sendable {
     var searchPath: URL?
     var includeSubfolders: Bool = true
     var fileFilters: [String] = [] // e.g., ["*.swift", "*.txt"]

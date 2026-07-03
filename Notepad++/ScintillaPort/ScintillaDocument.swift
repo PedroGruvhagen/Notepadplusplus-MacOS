@@ -113,8 +113,14 @@ class ScintillaDocument {
             maxSafeChar = max(dbcsMinTrailByte(), 1) - 1
         }
         
+        // Line 3028: hoist LengthNoExcept out of the loop condition (evaluate once). In C++
+        // LengthNoExcept() is O(1) and the scan stays linear; caching it in a local keeps
+        // the Swift scan linear too and matches Document.cxx:3021 semantics (the buffer
+        // length does not change during a match scan) (F11).
+        let len = lengthNoExcept()
+
         // Line 3028-3039: Main search loop
-        while currentPos >= 0 && currentPos < lengthNoExcept() {
+        while currentPos >= 0 && currentPos < len {
             let chAtPos = charAt(currentPos)
             
             // Line 3030: Check if character is brace or its opposite

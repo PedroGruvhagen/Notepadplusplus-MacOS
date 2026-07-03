@@ -83,19 +83,30 @@ class FoldingState: ObservableObject {
     }
     
     func updateRegions(_ newRegions: [FoldingRegion]) {
-        // Preserve collapsed state for existing regions at same locations
+        // F21: carry over collapsed state via an O(1) map keyed by (start,end), built once
+        // from the OLD regions, instead of `regions.first(where:)` per new region, which was
+        // O(old x new) on every fold recompute. Per-line fold state persistence mirrors
+        // Document::SetLevel (scintilla-reference/src/Document.cxx:603).
+        var collapsedByKey: [FoldKey: Bool] = [:]
+        for region in regions {
+            collapsedByKey[FoldKey(start: region.startLine, end: region.endLine)] = region.isCollapsed
+        }
+
         var updatedRegions = newRegions
-        
-        for (index, newRegion) in updatedRegions.enumerated() {
-            if let existingRegion = regions.first(where: { 
-                $0.startLine == newRegion.startLine && 
-                $0.endLine == newRegion.endLine 
-            }) {
-                updatedRegions[index].isCollapsed = existingRegion.isCollapsed
+        for index in updatedRegions.indices {
+            let key = FoldKey(start: updatedRegions[index].startLine, end: updatedRegions[index].endLine)
+            if let wasCollapsed = collapsedByKey[key] {
+                updatedRegions[index].isCollapsed = wasCollapsed
             }
         }
-        
+
         self.regions = updatedRegions
         updateCollapsedLines()
     }
+}
+
+// F21: hashable (start,end) key for O(1) collapsed-state carry-over in updateRegions.
+private struct FoldKey: Hashable {
+    let start: Int
+    let end: Int
 }

@@ -124,12 +124,22 @@ struct BOM {
 
 @MainActor
 class EncodingManager {
-    static let shared = EncodingManager()
+    // nonisolated: the singleton holds NO mutable stored state (it is a stateless
+    // collection of pure Data/String/file-I/O methods) and the @MainActor class is
+    // Sendable, so it is safe to reach from the background file-load task (Document.open's
+    // Task.detached) without hopping to the main actor. Without this, accessing `shared`
+    // from that nonisolated context is a main-actor-isolation error under Swift 6 strict
+    // concurrency (F26).
+    nonisolated static let shared = EncodingManager()
+
+    // nonisolated so the nonisolated `shared` can construct it; the initializer does
+    // nothing and touches no main-actor state.
+    nonisolated private init() {}
     
-    private init() {}
-    
-    // Detect encoding from file data (matches Notepad++ logic)
-    func detectEncoding(from data: Data) -> FileEncoding {
+    // Detect encoding from file data (matches Notepad++ logic).
+    // nonisolated: pure byte analysis, no UI state, so it can run off the main actor
+    // during a background file load (F26).
+    nonisolated func detectEncoding(from data: Data) -> FileEncoding {
         // Check for BOM first
         if let bomEncoding = detectBOM(from: data) {
             return bomEncoding
@@ -145,11 +155,18 @@ class EncodingManager {
         return detectEncoding(from: data)
     }
     
-    // Read file with detected encoding and EOL
-    func readFile(at url: URL, openAnsiAsUtf8: Bool = true) throws -> (content: String, encoding: FileEncoding, eolType: EOLType) {
+    // Read file with detected encoding and EOL.
+    // nonisolated: this is the port of Notepad++'s FileManager::loadFileData
+    // (Buffer.cpp:1015) - pure disk read + decode + EOL scan with no UI dependency, so it
+    // must run off the main actor to keep the editor responsive during open (F26).
+    //
+    // `lossy` is true when the last-resort decode had to substitute U+FFFD for undecodable
+    // bytes (F39): the caller must warn and protect the original bytes before the first save
+    // writes that substitution back over the file.
+    nonisolated func readFile(at url: URL, openAnsiAsUtf8: Bool = true) throws -> (content: String, encoding: FileEncoding, eolType: EOLType, lossy: Bool) {
         let data = try Data(contentsOf: url)
         var detectedEncoding = detectEncoding(from: data)
-        
+
         // Handle "Open ANSI as UTF-8" setting
         if detectedEncoding == .ansi && openAnsiAsUtf8 {
             // Try to read as UTF-8 first
@@ -157,7 +174,7 @@ class EncodingManager {
                 detectedEncoding = .utf8
             }
         }
-        
+
         // Remove BOM if present
         let contentData: Data
         if detectedEncoding.hasBOM {
@@ -165,9 +182,10 @@ class EncodingManager {
         } else {
             contentData = data
         }
-        
+
         // Convert to string using detected encoding
         let content: String
+        var lossy = false
         if let str = String(data: contentData, encoding: detectedEncoding.stringEncoding) {
             content = str
         } else if detectedEncoding == .ansi,
@@ -175,18 +193,25 @@ class EncodingManager {
             // Fallback for ANSI
             content = str
         } else {
-            // Last resort: force UTF-8
+            // Last resort: force UTF-8. String(decoding:as:) never fails - it replaces every
+            // undecodable byte with U+FFFD - so a binary or mis-detected file becomes an
+            // ordinary editable buffer whose first save would write the substitution back over
+            // the original bytes. Flag it so the caller can warn / protect the file (F39).
+            // Notepad++ instead round-trips raw bytes for its 8-bit modes (Utf8_16.cpp:141-148),
+            // never mangling them.
             content = String(decoding: contentData, as: UTF8.self)
+            lossy = true
         }
-        
+
         // Detect EOL type
         let eolType = detectEOL(from: content)
-        
-        return (content, detectedEncoding, eolType)
+
+        return (content, detectedEncoding, eolType, lossy)
     }
     
-    // Detect EOL type from content
-    func detectEOL(from content: String) -> EOLType {
+    // Detect EOL type from content.
+    // nonisolated: pure string scan, runs on the background load task (F26).
+    nonisolated func detectEOL(from content: String) -> EOLType {
         // Count occurrences of each EOL type
         var crlfCount = 0
         var lfCount = 0
@@ -252,8 +277,10 @@ class EncodingManager {
         }
     }
     
-    // Convert EOL type in content
-    func convertEOL(in content: String, to eolType: EOLType) -> String {
+    // Convert EOL type in content.
+    // nonisolated: pure string transformation with no UI state, so the save path can run it
+    // off the main actor together with the file write (F41).
+    nonisolated func convertEOL(in content: String, to eolType: EOLType) -> String {
         // First normalize all line endings to LF
         var normalized = content.replacingOccurrences(of: "\r\n", with: "\n")
         normalized = normalized.replacingOccurrences(of: "\r", with: "\n")
@@ -269,28 +296,57 @@ class EncodingManager {
         }
     }
     
-    // Write file with specified encoding
-    func writeFile(content: String, to url: URL, encoding: FileEncoding) throws {
+    // Write file with specified encoding.
+    // nonisolated: pure encode + disk write with no UI dependency, so the save path can run
+    // it off the main actor (F41). Was pinned to the main actor by a `Task { MainActor.run }`
+    // wrapper that froze the UI for the write's duration.
+    nonisolated func writeFile(content: String, to url: URL, encoding: FileEncoding) throws {
         var data = Data()
-        
+
         // Add BOM if needed
         if encoding.hasBOM {
             data.append(contentsOf: getBOM(for: encoding))
         }
-        
-        // Convert string to data with encoding
-        if let contentData = content.data(using: encoding.stringEncoding) {
+
+        // Convert string to data with encoding.
+        // F34: a document detected as pure ASCII (uni7Bit) is written as raw UTF-8 bytes, exactly
+        // as Notepad++/Scintilla does. Utf8_16_Write treats uni7Bit as a plain "Normal write" of
+        // the raw Scintilla buffer, which is UTF-8 internally (Utf8_16.cpp:369-380), and the reader
+        // passes uni7Bit bytes straight through (Utf8_16.cpp:141-148). Encoding via
+        // String.Encoding.ascii instead returned nil the instant any non-ASCII scalar was typed,
+        // making the file permanently unsavable (the quit Save button then looped forever). UTF-8
+        // is byte-identical for 7-bit content and a faithful superset for anything typed later.
+        let writeEncoding: String.Encoding = (encoding == .ascii) ? .utf8 : encoding.stringEncoding
+        if let contentData = content.data(using: writeEncoding) {
             data.append(contentData)
         } else {
             throw EncodingError.conversionFailed
         }
-        
-        try data.write(to: url)
+
+        // F36: refuse to start writing when the destination volume cannot hold the file, so a
+        // disk-full save fails loud and early with the original file still intact instead of
+        // truncating it. Translation of FileManager::saveBuffer's free-space guard
+        // (Buffer.cpp:1464-1478: getDiskFreeSpace ... if free < docLength return NotEnoughRoom).
+        let destinationDir = url.deletingLastPathComponent()
+        if let values = try? destinationDir.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
+           let available = values.volumeAvailableCapacityForImportantUsage,
+           Int64(data.count) > available {
+            throw EncodingError.notEnoughRoom
+        }
+
+        // F36: write atomically (Foundation writes a temporary sibling then renames it over the
+        // target). An interrupted write - kill -9, power loss, disk full mid-write - leaves the
+        // ORIGINAL file untouched rather than truncated. This is a DELIBERATE safety improvement
+        // over Notepad++'s literal Windows save path: FileManager::saveBuffer opens the target
+        // directly and writes in place (Buffer.cpp:1501 openFile(fullpath)), which is not atomic
+        // against a mid-write crash. Notepad++ uses temp-then-ReplaceFile/MoveFileEx only for the
+        // untitled-buffer backup snapshot (Buffer.cpp:1330-1373, gated on buffer->isUntitled()).
+        try data.write(to: url, options: .atomic)
     }
     
     // MARK: - Private Methods
     
-    private func detectBOM(from data: Data) -> FileEncoding? {
+    nonisolated private func detectBOM(from data: Data) -> FileEncoding? {
         guard data.count >= 2 else { return nil }
         
         // Check UTF-8 BOM (3 bytes)
@@ -321,7 +377,7 @@ class EncodingManager {
         return nil
     }
     
-    private func analyzeContent(_ data: Data) -> FileEncoding {
+    nonisolated private func analyzeContent(_ data: Data) -> FileEncoding {
         guard data.count > 0 else { return .utf8 }
         
         let bytes = Array(data)
@@ -381,7 +437,7 @@ class EncodingManager {
         }
     }
     
-    private func getUtf8SequenceLength(_ firstByte: UInt8) -> Int {
+    nonisolated private func getUtf8SequenceLength(_ firstByte: UInt8) -> Int {
         if firstByte < 0x80 {
             return 1
         } else if (firstByte & 0xE0) == 0xC0 {
@@ -395,7 +451,7 @@ class EncodingManager {
         }
     }
     
-    private func removeBOM(from data: Data, encoding: FileEncoding) -> Data {
+    nonisolated private func removeBOM(from data: Data, encoding: FileEncoding) -> Data {
         switch encoding {
         case .utf8BOM:
             return data.count > 3 ? data.dropFirst(3) : data
@@ -406,7 +462,7 @@ class EncodingManager {
         }
     }
     
-    private func getBOM(for encoding: FileEncoding) -> [UInt8] {
+    nonisolated private func getBOM(for encoding: FileEncoding) -> [UInt8] {
         switch encoding {
         case .utf8BOM:
             return BOM.utf8
@@ -423,13 +479,18 @@ class EncodingManager {
 enum EncodingError: LocalizedError {
     case conversionFailed
     case unsupportedEncoding
-    
+    // F36: destination volume does not have enough free space to hold the file. Translation of
+    // SavingStatus::notEnoughRoom (Buffer.h:54-59, Buffer.cpp:1477-1478).
+    case notEnoughRoom
+
     var errorDescription: String? {
         switch self {
         case .conversionFailed:
             return "Failed to convert text to the specified encoding"
         case .unsupportedEncoding:
             return "The file uses an unsupported encoding"
+        case .notEnoughRoom:
+            return "There is not enough free space on the disk to save this file"
         }
     }
 }

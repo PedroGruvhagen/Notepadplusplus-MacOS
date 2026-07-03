@@ -158,31 +158,70 @@ class SyntaxHighlighter: ObservableObject {
     }
     
     // MARK: - NSTextStorage Highlighting (for Document-owned text storage)
-    
-    /// Highlight NSTextStorage directly (for document-owned text storage)
-    /// This is used when each Document owns its own NSTextStorage
-    func highlight(textStorage: NSTextStorage, language: LanguageDefinition) {
+
+    /// The UTF-16 character range currently visible in `textView`, or nil if none can be
+    /// resolved yet (view not laid out / not in a window). Used to style the visible
+    /// window first at open and tab switch (Editor.cxx:5413 StyleToPositionInView clamps
+    /// styling to the visible client area). Resolving the glyph range for the visible rect
+    /// lays out only that rect when non-contiguous layout is enabled (F24).
+    static func visibleCharacterRange(of textView: NSTextView) -> NSRange? {
+        guard let layoutManager = textView.layoutManager,
+              let container = textView.textContainer else { return nil }
+        let visibleRect = textView.visibleRect
+        guard visibleRect.width > 0 && visibleRect.height > 0 else { return nil }
+        let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: container)
+        guard glyphRange.length > 0 else { return nil }
+        return layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+    }
+
+    /// One combined `\b(?:kw1|kw2|...)\b` regex per keyword set, compiled once and cached.
+    /// This replaces compiling and running a fresh whole-document regex per keyword (F25).
+    func combinedKeywordRegex(for keywords: [String]) -> NSRegularExpression? {
+        guard !keywords.isEmpty else { return nil }
+        let cacheKey = "kw:" + keywords.joined(separator: "\u{1}")
+        if let cached = cachedRegexes[cacheKey] { return cached }
+        let alternation = keywords.map { NSRegularExpression.escapedPattern(for: $0) }.joined(separator: "|")
+        guard let regex = try? NSRegularExpression(pattern: "\\b(?:\(alternation))\\b", options: []) else { return nil }
+        cachedRegexes[cacheKey] = regex
+        return regex
+    }
+
+    /// Highlight NSTextStorage directly (for document-owned text storage). `range` limits
+    /// styling to a sub-range (the visible range at open / tab switch); nil styles the
+    /// whole document. Faithful to Scintilla styling only the damaged / visible region
+    /// (Document.cxx:2616 EnsureStyledTo, Editor.cxx:5413 StyleToPositionInView) instead
+    /// of clearing and re-styling the whole document on every event.
+    func highlight(textStorage: NSTextStorage, language: LanguageDefinition, range: NSRange? = nil) {
         guard AppSettings.shared.syntaxHighlighting else { return }
-        
+
         let text = textStorage.string
-        
-        // Clear existing attributes
+        let nsText = text as NSString
+        let fullLength = nsText.length
+        guard fullLength > 0 else { return }
+
+        // Clamp the requested range to the storage and expand it to whole lines so that
+        // line-oriented lexers always see complete lines. UTF-16 length, never grapheme
+        // count, so ranges match the NSTextStorage coordinate space.
+        let requestedLocation = min(max(0, range?.location ?? 0), fullLength)
+        let requestedLength = min(max(0, range?.length ?? fullLength), fullLength - requestedLocation)
+        let targetRange = nsText.lineRange(for: NSRange(location: requestedLocation, length: requestedLength))
+
+        // Clear existing attributes within the target range only
         textStorage.beginEditing()
-        let fullRange = NSRange(location: 0, length: textStorage.length)
-        textStorage.removeAttribute(.foregroundColor, range: fullRange)
-        textStorage.removeAttribute(.font, range: fullRange)
-        
-        // Apply theme colors
+        textStorage.removeAttribute(.foregroundColor, range: targetRange)
+        textStorage.removeAttribute(.font, range: targetRange)
+
+        // Apply theme colors within the target range
         let theme = ThemeManager.shared.currentTheme
-        textStorage.addAttribute(.foregroundColor, value: theme.textColor, range: fullRange)
-        
+        textStorage.addAttribute(.foregroundColor, value: theme.textColor, range: targetRange)
+
         // Port of language-specific lexer selection (like defineDocType switch statement)
         switch language.name.lowercased() {
         case "python":
             // Get keywords for LIST_0 and LIST_1
             var keywords0: [String] = []
             var keywords1: [String] = []
-            
+
             for keywordSet in language.keywords {
                 if keywordSet.name == "Instructions" {
                     keywords0 = keywordSet.keywords
@@ -190,15 +229,16 @@ class SyntaxHighlighter: ObservableObject {
                     keywords1 = keywordSet.keywords
                 }
             }
-            
+
             // Direct port of setPythonLexer()
             ScintillaLexerPort.applyPythonHighlighting(
                 to: textStorage,
                 text: text,
+                range: targetRange,
                 keywords0: keywords0,
                 keywords1: keywords1
             )
-            
+
         case "javascript", "js":
             var keywords0: [String] = []
             for keywordSet in language.keywords {
@@ -210,9 +250,10 @@ class SyntaxHighlighter: ObservableObject {
             ScintillaLexerPort.applyJavaScriptHighlighting(
                 to: textStorage,
                 text: text,
+                range: targetRange,
                 keywords: keywords0
             )
-            
+
         case "c", "cpp", "c++":
             var keywords0: [String] = []
             for keywordSet in language.keywords {
@@ -224,30 +265,30 @@ class SyntaxHighlighter: ObservableObject {
             ScintillaLexerPort.applyCppHighlighting(
                 to: textStorage,
                 text: text,
+                range: targetRange,
                 keywords: keywords0
             )
-            
+
         default:
             // Fallback to basic highlighting for other languages
-            applyBasicHighlighting(to: textStorage, language: language)
+            applyBasicHighlighting(to: textStorage, language: language, range: targetRange)
         }
-        
+
         textStorage.endEditing()
     }
-    
-    private func applyBasicHighlighting(to textStorage: NSTextStorage, language: LanguageDefinition) {
+
+    private func applyBasicHighlighting(to textStorage: NSTextStorage, language: LanguageDefinition, range: NSRange) {
         let text = textStorage.string
-        
-        // Apply basic keyword highlighting
+
+        // Apply basic keyword highlighting: ONE combined, cached regex per keyword set,
+        // run once over the target range, instead of a fresh whole-document regex per
+        // keyword (F25). For languages with no keyword lists (e.g. Markdown) this is a
+        // no-op, so a plain-text open pays no keyword cost.
         for keywordSet in language.keywords {
+            guard let regex = combinedKeywordRegex(for: keywordSet.keywords) else { continue }
             let color = keywordSet.style.nsColor
-            for keyword in keywordSet.keywords {
-                if let regex = try? NSRegularExpression(pattern: "\\b\(NSRegularExpression.escapedPattern(for: keyword))\\b", options: []) {
-                    let matches = regex.matches(in: text, range: NSRange(location: 0, length: text.count))
-                    for match in matches {
-                        textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
-                    }
-                }
+            for match in regex.matches(in: text, options: [], range: range) {
+                textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
             }
         }
     }

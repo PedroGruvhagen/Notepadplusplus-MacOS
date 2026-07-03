@@ -204,8 +204,17 @@ class SettingsManager: ObservableObject {
     }
     
     // MARK: - Language Management
+    // F54: source the New Document default-language list from the SAME registry that resolves it back
+    // (LanguageManager, loaded from langs.model.xml), so every value the picker stores round-trips
+    // through LanguageManager.languageDefinition(named:) and is actually applied to new documents. The
+    // previous hardcoded, capitalized list ("Swift", "C++", "Markdown", ...) never matched the
+    // lowercase langs.model.xml names ("cpp", ...), so the chosen default language was silently
+    // dropped. "Plain Text" is the plain-buffer option (resolves to nil = no language, i.e. "normal").
     var availableLanguages: [String] {
-        // TODO: Load from language definitions
-        return ["Plain Text", "Swift", "JavaScript", "Python", "Java", "C++", "HTML", "CSS", "JSON", "XML", "Markdown"]
+        let langs = LanguageManager.shared.availableLanguages
+            .map { $0.name }
+            .filter { $0 != "normal" }
+            .sorted()
+        return ["Plain Text"] + langs
     }
 }

@@ -22,6 +22,8 @@ struct EditorView: View {
     @State private var showFindInFiles = false
     @State private var showBookmarks = false
     @State private var localContent: String = ""
+    // F19/F20: debounced fold-region detection. Moved here from the removed gutter view.
+    @State private var foldDetectWork: DispatchWorkItem?
     
     // Each document gets its own syntax highlighter instance
     // This mirrors Notepad++ where each buffer has its own lexer state
@@ -40,61 +42,36 @@ struct EditorView: View {
                 )
             }
             
-            if optimizedSettings.showLineNumbers {
-                HStack(alignment: .top, spacing: 0) {
-                    EnhancedLineNumberView(document: document, fontSize: CGFloat(settings.fontSize))
-                        .background(Color(NSColor.controlBackgroundColor))
-                    
-                    Divider()
-                    
-                    DocumentTextEditor(
-                        document: document,
-                        fontSize: CGFloat(settings.fontSize),
-                        fontName: settings.fontName,
-                        wordWrap: settings.wordWrap,
-                        showWhitespace: settings.showWhitespace,
-                        showEndOfLine: settings.showEndOfLine,
-                        highlightCurrentLine: settings.highlightCurrentLine,
-                        currentLineColor: settings.currentLineColor,
-                        showIndentGuides: settings.showIndentGuides,
-                        caretWidth: CGFloat(settings.caretWidth),
-                        scrollBeyondLastLine: settings.scrollBeyondLastLine,
-                        tabSize: settings.tabSize,
-                        replaceTabsBySpaces: settings.replaceTabsBySpaces,
-                        maintainIndent: settings.maintainIndent,
-                        autoIndent: settings.autoIndent,
-                        smartIndent: settings.smartIndent,
-                        syntaxHighlightingEnabled: optimizedSettings.syntaxHighlighting
-                    )
-                    .focused($isEditorFocused)
-                    .onAppear {
-                        isEditorFocused = true
-                    }
-                }
-            } else {
-                DocumentTextEditor(
-                    document: document,
-                    fontSize: CGFloat(settings.fontSize),
-                    fontName: settings.fontName,
-                    wordWrap: settings.wordWrap,
-                    showWhitespace: settings.showWhitespace,
-                    showEndOfLine: settings.showEndOfLine,
-                    highlightCurrentLine: settings.highlightCurrentLine,
-                    currentLineColor: settings.currentLineColor,
-                    showIndentGuides: settings.showIndentGuides,
-                    caretWidth: CGFloat(settings.caretWidth),
-                    scrollBeyondLastLine: settings.scrollBeyondLastLine,
-                    tabSize: settings.tabSize,
-                    replaceTabsBySpaces: settings.replaceTabsBySpaces,
-                    maintainIndent: settings.maintainIndent,
-                    autoIndent: settings.autoIndent,
-                    smartIndent: settings.smartIndent,
-                    syntaxHighlightingEnabled: optimizedSettings.syntaxHighlighting
-                )
-                .focused($isEditorFocused)
-                .onAppear {
-                    isEditorFocused = true
-                }
+            // F61: the line-number gutter is now a native NSRulerView INSIDE the editor's scroll
+            // view (DocumentTextEditor), so it scrolls with the text by construction. The old sibling
+            // SwiftUI gutter (EnhancedLineNumberView) is gone; showLineNumbers now toggles the ruler.
+            // Keeping ONE DocumentTextEditor call site means the representable identity never flips, so
+            // the editor and its Coordinator are not torn down and recreated (F01).
+            DocumentTextEditor(
+                document: document,
+                fontSize: CGFloat(settings.fontSize),
+                fontName: settings.fontName,
+                wordWrap: settings.wordWrap,
+                showWhitespace: settings.showWhitespace,
+                showEndOfLine: settings.showEndOfLine,
+                highlightCurrentLine: settings.highlightCurrentLine,
+                currentLineColor: settings.currentLineColor,
+                showIndentGuides: settings.showIndentGuides,
+                caretWidth: CGFloat(settings.caretWidth),
+                caretBlinkRate: settings.caretBlinkRate,
+                scrollBeyondLastLine: settings.scrollBeyondLastLine,
+                showLineNumbers: optimizedSettings.showLineNumbers,
+                tabSize: settings.tabSize,
+                replaceTabsBySpaces: settings.replaceTabsBySpaces,
+                maintainIndent: settings.maintainIndent,
+                autoIndent: settings.autoIndent,
+                smartIndent: settings.smartIndent,
+                syntaxHighlightingEnabled: optimizedSettings.syntaxHighlighting
+            )
+            .focused($isEditorFocused)
+            .onAppear {
+                isEditorFocused = true
+                scheduleFoldDetection()
             }
             
             if settings.showStatusBar {
@@ -110,10 +87,30 @@ struct EditorView: View {
             showReplaceBar = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .foldAll)) { _ in
-            document.foldingState.foldAll()
+            // F20: only fold when folding is actually enabled for this document (setting on AND not a
+            // large file, via the cached OptimizedSettings). Fold All on a large file must be inert.
+            if optimizedSettings.codeFolding { document.foldingState.foldAll() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .unfoldAll)) { _ in
             document.foldingState.unfoldAll()
+        }
+        // F19/F20: recompute fold regions when the text settles (debounced). Gated inside on the
+        // document's OptimizedSettings.codeFolding so large files (fold detection disabled) pay nothing.
+        .onChange(of: document.textVersion) {
+            scheduleFoldDetection()
+        }
+        // F20 / live setting toggles: the OptimizedSettings cache feeds the fold gate, Show Line
+        // Numbers, and syntax highlighting; invalidate it so toggling these View-menu items takes
+        // effect immediately instead of only after the next save.
+        .onChange(of: settings.codeFolding) {
+            document.invalidateOptimizedSettings()
+            scheduleFoldDetection()
+        }
+        .onChange(of: settings.showLineNumbers) {
+            document.invalidateOptimizedSettings()
+        }
+        .onChange(of: settings.syntaxHighlighting) {
+            document.invalidateOptimizedSettings()
         }
         .onReceive(NotificationCenter.default.publisher(for: .showFindInFiles)) { _ in
             showFindInFiles = true
@@ -163,55 +160,50 @@ struct EditorView: View {
             }
         }
     }
-}
 
-struct LineNumberView: View {
-    let text: String
-    let fontSize: CGFloat
-    
-    private var lineCount: Int {
-        text.isEmpty ? 1 : text.filter { $0 == "\n" }.count + 1
-    }
-    
-    var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .trailing, spacing: 0) {
-                ForEach(1...lineCount, id: \.self) { lineNumber in
-                    Text("\(lineNumber)")
-                        .font(.system(size: fontSize, weight: .regular, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 8)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
+    // F19/F20: coalesce fold-region detection ~250 ms after typing settles (moved here from the
+    // removed EnhancedLineNumberView). Gated on the document's OptimizedSettings.codeFolding so a
+    // large file (fold detection disabled) never runs the scan; when folding is off, any stale
+    // regions are cleared so the folding layout delegate shows every line (F20).
+    private func scheduleFoldDetection() {
+        guard optimizedSettings.codeFolding else {
+            if !document.foldingState.regions.isEmpty {
+                document.foldingState.updateRegions([])
             }
+            return
         }
-        .disabled(true)
+        foldDetectWork?.cancel()
+        let doc = document
+        let work = DispatchWorkItem {
+            let regions = FoldingManager.detectFoldingRegions(in: doc.content, language: doc.language)
+            doc.foldingState.updateRegions(regions)
+        }
+        foldDetectWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
     }
 }
 
 struct StatusBarView: View {
     @ObservedObject var document: Document
-    
-    private var lineColumn: (Int, Int) {
-        // Simplified line/column calculation
-        let lines = document.content.components(separatedBy: "\n")
-        return (lines.count, lines.last?.count ?? 0)
-    }
-    
+
     var body: some View {
         HStack {
             Text(document.fileName)
                 .font(.system(size: 11))
-            
+
             if document.isModified {
                 Text("Modified")
                     .font(.system(size: 11))
                     .foregroundColor(.orange)
             }
-            
+
             Spacer()
-            
-            Text("Line \(lineColumn.0), Column \(lineColumn.1)")
+
+            // F13: the CARET line/column from the CellBuffer index (O(log n) binary search),
+            // not by splitting the whole content per render. Shows the caret position
+            // (SCI_LINEFROMPOSITION(SCI_GETCURRENTPOS) / SCI_GETCOLUMN), not total lines and
+            // last-line length. caretPosition is @Published so this refreshes on caret moves.
+            Text("Line \(document.statusLineColumn.line), Column \(document.statusLineColumn.column)")
                 .font(.system(size: 11))
             
             Divider()
@@ -222,9 +214,30 @@ struct StatusBarView: View {
             
             Divider()
                 .frame(height: 12)
-            
-            Text(document.encoding.displayName)
-                .font(.system(size: 11))
+
+            // F34: the encoding is a user-changeable property (Notepad++ Encoding menu / Buffer.cpp
+            // setEncoding). Surfacing it as a menu here gives a discoverable escape hatch: if a file
+            // cannot be written in its current encoding, the user can switch it to UTF-8 (or another
+            // encoding) and re-save, instead of being stuck. changeEncoding marks the buffer dirty.
+            Menu {
+                ForEach(FileEncoding.allCases, id: \.self) { enc in
+                    Button {
+                        document.changeEncoding(enc)
+                    } label: {
+                        if enc == document.encoding {
+                            Label(enc.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(enc.displayName)
+                        }
+                    }
+                }
+            } label: {
+                Text(document.encoding.displayName)
+                    .font(.system(size: 11))
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Change file encoding")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)

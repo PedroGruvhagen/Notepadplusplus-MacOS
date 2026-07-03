@@ -55,11 +55,21 @@ extension NSTextView {
             options.insert(.caseInsensitive)
         }
         
+        // Restrict the scan to the VISIBLE character range, expanded to whole lines, rather
+        // than the whole document. Faithful to SmartHighlighter.cpp:36-39
+        // (highlightViewWithWord), which scans only firstVisibleLine ..
+        // firstVisibleLine + min(linesOnScreen, MAXLINEHIGHLIGHT); the visible rect is
+        // inherently that bounded window. Derived the same way syntax highlighting derives
+        // its visible range (F12). If the view is not laid out yet, there is nothing on
+        // screen to highlight.
+        guard let visibleRange = SyntaxHighlighter.visibleCharacterRange(of: self) else { return }
+        let scanRange = text.lineRange(for: visibleRange)
+
         // Find all matches
         do {
             let regex = try NSRegularExpression(pattern: pattern, options: options)
-            let matches = regex.matches(in: self.string, options: [], range: NSRange(location: 0, length: text.length))
-            
+            let matches = regex.matches(in: self.string, options: [], range: scanRange)
+
             guard let textStorage = self.textStorage else { return }
             
             // Store ranges for clearing later
@@ -87,11 +97,18 @@ extension NSTextView {
     func clearSmartHighlight() {
         guard let textStorage = self.textStorage,
               let ranges = smartHighlightRanges else { return }
-        
+
+        let length = textStorage.length
         for range in ranges {
+            // Bounds-check against the CURRENT storage: after a document swap the stored
+            // ranges may belong to a different (shorter) storage (F03), which otherwise
+            // raises NSRangeException.
+            guard range.location >= 0,
+                  range.length >= 0,
+                  range.location + range.length <= length else { continue }
             textStorage.removeAttribute(.backgroundColor, range: range)
         }
-        
+
         smartHighlightRanges = nil
     }
 }

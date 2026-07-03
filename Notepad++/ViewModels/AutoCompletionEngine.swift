@@ -180,6 +180,14 @@ class AutoCompletionEngine: NSObject {
         _insertedMatchedChars.initialize(textView: textView)
     }
 
+    // F53: configure(for:) installs an unsafe-unretained NSText.didChangeNotification observer keyed
+    // on self; it MUST be removed before this object is freed or NotificationCenter dereferences a
+    // dangling pointer on the next edit. The engine is now instantiated per editor pane (F53), so it
+    // is deallocated on window/tab teardown.
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     // MARK: - Core Auto-Completion Methods
 
     // Translation of AutoCompletion::update() (AutoCompletion.cpp lines 1017-1054)
@@ -198,8 +206,13 @@ class AutoCompletionEngine: NSObject {
         let wordSize = 64
         guard let currentWord = getWordToCurrentPos(maxLength: wordSize) else { return }
 
+        // F53: honour the user-facing "Trigger from character" setting so the slider is truthful.
+        // This is Notepad++'s nppGUI._autocFromLen (AutoCompletion.cpp:1071 the >= _autocFromLen gate);
+        // the macOS UI persists it as AppSettings.autoCompletionMinChars.
+        let minChars = max(1, AppSettings.shared.autoCompletionMinChars)
+
         // Check if word length meets minimum threshold
-        if currentWord.count >= nppGUI._autocFromLen {
+        if currentWord.count >= minChars {
             switch nppGUI._autocStatus {
             case .autocWord:
                 _ = showWordComplete(autoInsert: false)
@@ -351,10 +364,9 @@ class AutoCompletionEngine: NSObject {
     func getWordArray(wordArray: inout [String], beginChars: String, excludeChars: String) {
         guard let textView = _pEditView else { return }
 
-        let nppGUI = AppSettings.shared.nppGUI
-
-        // Check: ignore numbers setting (line 459-460)
-        if nppGUI._autocIgnoreNumbers && isAllDigits(beginChars) {
+        // Check: ignore numbers setting (line 459-460). F53: read the user-facing toggle so the
+        // "Ignore numbers" checkbox is truthful (Notepad++ nppGUI._autocIgnoreNumbers).
+        if AppSettings.shared.autoCompletionIgnoreNumbers && isAllDigits(beginChars) {
             return
         }
 

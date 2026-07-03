@@ -101,11 +101,12 @@ class PerformanceManager {
                 layoutManager.allowsNonContiguousLayout = true
                 // hasNonContiguousLayout is read-only
             }
-            
-            // Reduce undo levels
+
+            // Undo levels are capped on each Document's own UndoManager (see
+            // Document.undoManager and makeNSView). textView.undoManager is nil here
+            // (called pre-window) so setting it was a no-op (F04).
             textView.allowsUndo = true
-            textView.undoManager?.levelsOfUndo = 10 // Reduce from default
-            
+
         } else {
             // Restore normal features
             textView.isAutomaticSpellingCorrectionEnabled = false // Keep disabled as per Notepad++ style
@@ -114,13 +115,19 @@ class PerformanceManager {
             textView.isAutomaticTextReplacementEnabled = false
             textView.isContinuousSpellCheckingEnabled = false
             textView.isGrammarCheckingEnabled = false
-            
+
             if let layoutManager = textView.layoutManager {
-                layoutManager.allowsNonContiguousLayout = false
+                // F24: keep non-contiguous (lazy) layout enabled for ALL files, not just
+                // large ones. With it disabled TextKit laid out the entire document up
+                // front, so opening a large file forced O(document) glyph layout on the
+                // main thread. Non-contiguous layout lets TextKit lay out only the visible
+                // rect on demand, the TextKit equivalent of Scintilla styling/laying out
+                // only the visible window (Editor.cxx StyleToPositionInView clamps work to
+                // the visible area).
+                layoutManager.allowsNonContiguousLayout = true
                 // hasNonContiguousLayout is read-only
             }
-            
-            textView.undoManager?.levelsOfUndo = 100 // Normal undo levels
+            // Undo levels are capped on each Document's own UndoManager (see F04 note above).
         }
     }
 }
@@ -135,15 +142,7 @@ struct OptimizedSettings {
     let showLineNumbers: Bool
 }
 
-// Extension to Document to track if it's a large file
-extension Document {
-    @MainActor
-    var isLargeFile: Bool {
-        return PerformanceManager.shared.isLargeFile(size: Int64(content.utf8.count))
-    }
-    
-    @MainActor
-    func getOptimizedSettings() -> OptimizedSettings {
-        return PerformanceManager.shared.getOptimizedSettings(for: self)
-    }
-}
+// Document.isLargeFile and Document.getOptimizedSettings now live on Document proper
+// (Models/Document.swift): isLargeFile returns a value computed once at open/init instead
+// of recomputing content.utf8.count per access, and getOptimizedSettings caches its result
+// so the render path never stats the file (F13).

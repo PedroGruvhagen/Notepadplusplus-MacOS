@@ -260,7 +260,7 @@ struct FindReplaceBar: View {
 
         // Route through the live NSTextView so the replacement lands on the native undo
         // stack (Cmd+Z reverts it). Falling back to a full-string swap only if no live view.
-        if let textView = DocumentTextEditor.sharedTextView {
+        if let textView = DocumentTextEditor.activeTextView {
             textView.replaceCharactersUndoable(in: range, with: replaceText)
             let caret = range.location + (replaceText as NSString).length
             textView.setSelectedRange(NSRange(location: caret, length: 0))
@@ -277,13 +277,16 @@ struct FindReplaceBar: View {
         let matches = findAllMatches()
         guard !matches.isEmpty else { return }
 
-        // One undo group for the whole batch, matching Notepad++ (Replace All is a single
-        // undo action). Replace from end to beginning so earlier offsets stay valid.
-        if let textView = DocumentTextEditor.sharedTextView {
+        // F46: ONE batched edit for the whole Replace All instead of rerunning the full
+        // per-keystroke pipeline once per match (each old replaceCharactersUndoable fired
+        // didChangeText -> textDidChange -> model resync + brace/current-line/gutter render per
+        // hit, a multi-minute hang for thousands of matches). replaceAllOccurrences coalesces every
+        // replacement into a single NSTextStorage editing pass and a single undo action, mirroring
+        // Notepad++ suppressing SCN_MODIFIED during processAll (FindReplaceDlg.cpp:3329) inside
+        // SCI_BEGINUNDOACTION/ENDUNDOACTION (FindReplaceDlg.cpp:2538-2540).
+        if let textView = DocumentTextEditor.activeTextView {
             textView.beginUndoAction()
-            for range in matches.reversed() {
-                textView.replaceCharactersUndoable(in: range, with: replaceText)
-            }
+            textView.replaceAllOccurrences(in: matches, with: replaceText)
             textView.endUndoAction()
         } else {
             var newContent = document.content as NSString

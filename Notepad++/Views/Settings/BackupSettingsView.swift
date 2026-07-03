@@ -76,6 +76,15 @@ struct BackupSettingsView: View {
                             .frame(width: 60)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .disabled(!settings.enableAutoSave)
+                            // Validate on edit: the persisted setting cannot be stored below 1. A 0 or
+                            // negative interval would make the auto-save Timer fire every runloop pass (F33).
+                            // Port of Notepad++'s backup-timing field validation, which resets a 0 entry to
+                            // the floor: `if (!nppGUI._snapshotBackupTiming) { nppGUI._snapshotBackupTiming =
+                            // 1000; SetDlgItemInt(..., 1, FALSE); }`
+                            // (notepad-plus-plus-reference/PowerEditor/src/WinControls/Preference/preferenceDlg.cpp:5559-5562).
+                            .onChange(of: settings.autoSaveInterval) {
+                                if settings.autoSaveInterval < 1 { settings.autoSaveInterval = 1 }
+                            }
                         Text("minutes")
                         
                         Spacer()

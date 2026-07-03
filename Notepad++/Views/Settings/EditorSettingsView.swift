@@ -79,7 +79,13 @@ struct EditorSettingsView: View {
                     }
                     .help("0 = no blinking")
                     
+                    // F55: NSTextView has no discontiguous multi-caret model (unlike Scintilla
+                    // SCI_SETMULTIPLESELECTION), so this is honestly disabled rather than silently
+                    // doing nothing. Tracked in .deferred/notepadpp/2026-07-03-multi-selection.md.
                     Toggle("Enable multi-selection", isOn: $settings.enableMultiSelection)
+                        .disabled(!FeatureGates.shared.isImplemented("enableMultiSelection"))
+                        .help(FeatureGates.shared.getStatus("enableMultiSelection").helpText
+                              ?? "Select multiple ranges at once")
                 }
                 .padding()
             }
