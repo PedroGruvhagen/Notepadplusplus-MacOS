@@ -363,3 +363,15 @@ pdf2md convert "/path/to/document.pdf" -o "/path/to/output.md" --api-key "$MISTR
   5. Test any implemented changes thoroughly
 
   REMEMBER: Gemini is a tool to help overcome blockers and get fresh perspectives. It's particularly valuable when you've exhausted initial approaches or need to validate your thinking on complex problems.
+
+## Lore + memory usage
+
+Gitignored project knowledge base at `lore/` (repo root): pages in `lore/pages/`, catalog in `lore/index.md`, conventions in `lore/schema.md`. Search: `grep -ri "<keyword>" lore/`.
+
+READ before changing code: at the start of any task touching a subsystem, read `lore/index.md` plus every page covering that subsystem (whole page, not the index line). Lore overrides training-data assumptions; verify against actual code.
+
+WRITE after learning: any discovered wiring point, build step, deploy gotcha, or non-obvious location becomes a `lore/pages/` page plus a row in `lore/index.md`. A bug caused by missed wiring or misunderstood architecture gets its root cause recorded in lore before the task closes; a fix without a lore update is incomplete. Embed this in every sub-agent prompt.
+
+- `lore/` is gitignored (`/lore/` in .gitignore). Never commit it; never delete pages without logging in `lore/log.md`.
+- Project MEMORY.md (at `~/.claude-account1/projects/<encoded-cwd>/memory/MEMORY.md`) is an index only: one line per fact pointing to a lore page. Detail lives in `lore/`, never inline in MEMORY.md. Keep it under 24.4KB / 200 lines. This CLAUDE.md is the authoritative router; MEMORY.md is keyed to launch cwd and is not guaranteed to load.
+- Global rules in `~/.claude-account1/CLAUDE.md` apply.
