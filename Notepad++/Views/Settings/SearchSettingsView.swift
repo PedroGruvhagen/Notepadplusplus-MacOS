@@ -167,23 +167,32 @@ struct SearchSettingsView: View {
         }
     }
     
+    @MainActor
     private func clearSearchHistory() {
-        UserDefaults.standard.removeObject(forKey: "searchHistory")
-        
+        // Clear the REAL Find in Files history. AdvancedSearchManager (the @MainActor singleton
+        // reached via .shared) owns the @Published searchHistory array and persists it under the
+        // "SearchHistory" UserDefaults key (AdvancedSearchManager.swift:35,310-312). Its
+        // clearSearchHistory() (AdvancedSearchManager.swift:298-301) empties the live array and
+        // rewrites that key, so a Find in Files window open right now also loses its history.
+        // The previous code removed a non-existent "searchHistory" (lowercase) key and never
+        // touched the live array, so nothing was actually cleared.
+        AdvancedSearchManager.shared.clearSearchHistory()
+
         let alert = NSAlert()
         alert.messageText = "Search History Cleared"
-        alert.informativeText = "The search history has been cleared."
+        alert.informativeText = "The Find in Files search history has been cleared."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
-    
+
     private func clearReplaceHistory() {
-        UserDefaults.standard.removeObject(forKey: "replaceHistory")
-        
+        // There is no replace-history store in this version: nothing in the codebase writes a
+        // replace history to disk or memory, so there is nothing to clear. Say that plainly
+        // instead of claiming a clear happened. The button is kept, not removed.
         let alert = NSAlert()
-        alert.messageText = "Replace History Cleared"
-        alert.informativeText = "The replace history has been cleared."
+        alert.messageText = "Replace History"
+        alert.informativeText = "Replace history is not stored in this version, so there is nothing to clear."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()

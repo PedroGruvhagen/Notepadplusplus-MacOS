@@ -363,7 +363,27 @@ struct Notepad__App: App {
             CommandMenu("Language") {
                 LanguageMenuView()
             }
+
+            // Help menu - replaces the default, non-functional macOS Help group with working
+            // links, a Debug Info panel, and the in-app Help window. Kept in its own Commands
+            // type so it can use @Environment(\.openWindow) (the App struct cannot read the
+            // environment). Translated from the Windows "?" menu (Notepad_plus.rc).
+            HelpCommands()
         }
+
+        // Secondary windows opened from the Help menu. They are declared after the primary
+        // WindowGroup so the document window is what opens at launch; these stay closed until
+        // openWindow(id:) is called from HelpCommands. Deployment target is macOS 15.5, so the
+        // Window scene and openWindow are available (both require macOS 13+).
+        Window("Notepad++ Help", id: HelpScene.help) {
+            HelpWindowView()
+        }
+        .defaultSize(width: 820, height: 560)
+
+        Window("Debug Info", id: HelpScene.debugInfo) {
+            HelpDebugInfoView()
+        }
+        .defaultSize(width: 560, height: 420)
     }
 }
 
