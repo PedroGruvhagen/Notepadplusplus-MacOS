@@ -319,7 +319,8 @@ class Document: ObservableObject {
             _lang = lang
             _userLangExt = userLangName
             doNotify(.language)
-            
+            objectWillChange.send()   // the Language menu checkmark reflects the active language
+
             _needLexer = true
             doNotify(.lexing)
         }

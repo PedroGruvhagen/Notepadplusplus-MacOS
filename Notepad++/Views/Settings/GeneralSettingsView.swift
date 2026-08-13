@@ -9,6 +9,7 @@ import SwiftUI
 
 struct GeneralSettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var updaterManager = UpdaterManager.shared
     private let featureGates = FeatureGates.shared
     
     var body: some View {
@@ -90,55 +91,32 @@ struct GeneralSettingsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Toggle("Check for updates automatically", isOn: $settings.checkForUpdates)
-                            .disabled(!featureGates.isImplemented("checkForUpdates"))
-                            .help(featureGates.getStatus("checkForUpdates").helpText ?? "")
-                        if let badge = featureGates.getStatus("checkForUpdates").badgeText {
-                            Text(badge)
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.orange.opacity(0.2))
-                                .cornerRadius(4)
-                        }
+                            .onChange(of: settings.checkForUpdates) { _, newValue in
+                                updaterManager.automaticallyChecksForUpdates = newValue
+                            }
                     }
-                    
+
                     HStack {
                         Text("Check interval:")
                         TextField("", value: $settings.updateIntervalDays, format: .number)
                             .frame(width: 60)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .disabled(!featureGates.isImplemented("updateIntervalDays"))
+                            .onChange(of: settings.updateIntervalDays) { _, newValue in
+                                updaterManager.updateCheckInterval = UpdaterManager.clampedInterval(days: newValue)
+                            }
                         Text("days")
-                        if let badge = featureGates.getStatus("updateIntervalDays").badgeText {
-                            Text(badge)
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.orange.opacity(0.2))
-                                .cornerRadius(4)
-                        }
                     }
-                    
+
                     Button("Check for Updates Now") {
-                        checkForUpdatesNow()
+                        updaterManager.checkForUpdates()
                     }
                     .buttonStyle(.bordered)
-                    .disabled(!featureGates.isImplemented("checkForUpdates"))
+                    .disabled(!updaterManager.canCheckForUpdates)
                 }
                 .padding()
             }
-            
+
             Spacer()
         }
-    }
-    
-    private func checkForUpdatesNow() {
-        // TODO: Implement update check
-        let alert = NSAlert()
-        alert.messageText = "Check for Updates"
-        alert.informativeText = "You are using the latest version of Notepad++ for macOS."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
     }
 }

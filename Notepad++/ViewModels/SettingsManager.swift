@@ -102,6 +102,12 @@ class SettingsManager: ObservableObject {
         settings.rememberLastSession = true
         settings.checkForUpdates = true
         settings.updateIntervalDays = 15
+        // GeneralSettingsView's Toggle/TextField only push into UpdaterManager via their own
+        // .onChange, which this programmatic reset bypasses (it mutates AppSettings directly,
+        // not through the bound controls). Resync explicitly so the live updater matches the
+        // just-reset defaults instead of keeping whatever automatic-check/interval state a user
+        // had set before hitting Reset.
+        UpdaterManager.shared.applyPersistedSettings()
     }
     
     private func resetEditorSettings() {

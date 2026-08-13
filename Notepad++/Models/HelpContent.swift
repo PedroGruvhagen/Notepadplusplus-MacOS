@@ -184,6 +184,7 @@ enum HelpContent {
                 .paragraph("The application menu, named Notepad++, holds the macOS-standard items plus:"),
                 .bullets([
                     "About Notepad++: the standard About panel, showing the version along with the developer and license credits.",
+                    "Check for Updates...: check the appcast for a newer release (Sparkle) and, if one is found, offer to download and install it. Disabled while a check is already running.",
                     "Preferences (Command-comma): open the Preferences window. Each Preferences category is described in the Settings section of this help."
                 ])
             ]
@@ -256,8 +257,8 @@ enum HelpContent {
             title: "Language menu",
             section: .menus,
             blocks: [
-                .paragraph("The Language menu lists programming and markup languages. Choosing one sets the syntax-highlighting language for the active document only; other tabs are unchanged."),
-                .paragraph("The menu currently shows the first twenty languages from the bundled language definitions. To set the language that new documents start with, use Preferences > New Document.")
+                .paragraph("The Language menu lists all languages from the bundled language definitions. Choosing one sets the syntax-highlighting language for the active document only; other tabs are unchanged. A checkmark shows the active document's current language, and moves as you switch tabs or pick a different language."),
+                .paragraph("To set the language that new documents start with, use Preferences > New Document.")
             ]
         ),
         HelpTopic(
@@ -271,7 +272,7 @@ enum HelpContent {
                     "Notepad++ macOS Project Page: open this port's page on GitHub.",
                     "Online User Manual: open the Notepad++ user manual website.",
                     "Community (Forum): open the Notepad++ community forum.",
-                    "Check for Updates: open the project's Releases page on GitHub, where the latest version is listed.",
+                    "Check for Updates: check the appcast for a newer release (Sparkle) and, if one is found, offer to download and install it.",
                     "Debug Info: open a panel with the version, system, and install-path information, with a button to copy it for bug reports."
                 ]),
                 .paragraph("The About item, which shows the version and credits, is in the Notepad++ application menu, not the Help menu, following the macOS convention.")
@@ -305,7 +306,9 @@ enum HelpContent {
                     "Maximum recent files and Show recent files in submenu: not yet active, shown with a Coming Soon label."
                 ]),
                 .heading("Updates"),
-                .paragraph("Check for updates automatically, the check interval, and Check for Updates Now are not yet active. To get updates, use Help > Check for Updates, which opens the Releases page where the latest version is listed.")
+                .paragraph("Check for updates automatically: when on, Notepad++ periodically checks the appcast in the background at the interval below (Sparkle's own minimum is one hour, even if a shorter interval is entered)."),
+                .paragraph("Check interval: how often, in days, automatic checks run."),
+                .paragraph("Check for Updates Now: check immediately and show Sparkle's own progress and update dialogs. The same check is available from the Notepad++ menu and the Help menu.")
             ]
         ),
         HelpTopic(

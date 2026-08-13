@@ -70,7 +70,11 @@ struct FeatureGates {
         "enableAutoCompletion",
         "autoCompletionMinChars",
         "showFunctionParameters",
-        "autoCompletionIgnoreNumbers"
+        "autoCompletionIgnoreNumbers",
+
+        // Updates (FULLY IMPLEMENTED - Sparkle 2, UpdaterManager)
+        "checkForUpdates",
+        "updateIntervalDays"
     ])
     
     // MARK: - Partially Implemented Features
@@ -89,10 +93,6 @@ struct FeatureGates {
     
     /// These features are not implemented at all
     let notImplementedFeatures = Set<String>([
-        // Updates
-        "checkForUpdates",
-        "updateIntervalDays",
-        
         // Recent Files
         "maxRecentFiles",
         "showRecentFilesInSubmenu",

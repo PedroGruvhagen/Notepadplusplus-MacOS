@@ -12,6 +12,7 @@ struct Notepad__App: App {
     @StateObject private var backupManager = BackupManager.shared
     @StateObject private var documentManager = DocumentManager.shared
     @StateObject private var menuState = MenuCommandState.shared
+    @StateObject private var updaterManager = UpdaterManager.shared
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
@@ -34,6 +35,18 @@ struct Notepad__App: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
+            // Sparkle 2 (UpdaterManager.swift). Placed after .appInfo (About Notepad++), the
+            // conventional macOS location for "Check for Updates...", matching Sparkle's own
+            // default template. canCheckForUpdates mirrors SPUUpdater.canCheckForUpdates, so this
+            // greys out while a check/update is already in progress instead of allowing a second
+            // overlapping one.
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates...") {
+                    updaterManager.checkForUpdates()
+                }
+                .disabled(!updaterManager.canCheckForUpdates)
+            }
+
             CommandGroup(after: .appSettings) {
                 Button("Preferences...") {
                     NotificationCenter.default.post(name: .showPreferences, object: nil)
@@ -361,7 +374,7 @@ struct Notepad__App: App {
             
             // Language menu - matching Notepad++ structure
             CommandMenu("Language") {
-                LanguageMenuView()
+                LanguageMenuView(documentManager: documentManager)
             }
 
             // Help menu - replaces the default, non-functional macOS Help group with working

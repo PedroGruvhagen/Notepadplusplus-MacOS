@@ -33,5 +33,27 @@
 			</array>
 		</dict>
 	</array>
+	<!--
+	  Sparkle 2 auto-update (UpdaterManager.swift). These have no INFOPLIST_KEY_* build-setting
+	  equivalent, so they are declared directly here and merged in by GENERATE_INFOPLIST_FILE, same
+	  as CFBundleDocumentTypes above.
+
+	  SUFeedURL: the appcast this build checks against. Published at the repo root (appcast.xml) and
+	  populated by scripts/sign-and-notarize.sh on every release.
+	  SUPublicEDKey: the EdDSA public key generated once via Sparkle's generate_keys tool (private key
+	  stays in the login Keychain; sign_update uses it to sign each release DMG). Still the
+	  REPLACE_ME sentinel: generate_keys needs an interactive Keychain authorization dialog that
+	  cannot be approved in a non-interactive session. See
+	  .deferred/notepadpp/2026-08-13-sparkle-eddsa-keys.md and lore/pages/auto-update-sparkle.md.
+	  SUEnableAutomaticChecks: Sparkle's own opt-in flag for background checks; UpdaterManager also
+	  drives automaticallyChecksForUpdates directly from AppSettings.checkForUpdates at every launch,
+	  so this is the same default the Settings toggle starts with.
+	-->
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/PedroGruvhagen/Notepadplusplus-MacOS/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>REPLACE_ME</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 </dict>
 </plist>

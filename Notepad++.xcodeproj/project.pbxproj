@@ -6,6 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		47571B46940D20779717E784 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 6EAA552DB5A4CC86F77E1EBE /* Sparkle */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXTargetDependency section */
+		EA9C365333FDE7E1CDDD6F61 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = 6EAA552DB5A4CC86F77E1EBE /* Sparkle */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin PBXFileReference section */
 		AFE6F3A12E4F4CB300FC0C78 /* Notepad++.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Notepad++.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +34,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				47571B46940D20779717E784 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,12 +71,14 @@
 			buildRules = (
 			);
 			dependencies = (
+				EA9C365333FDE7E1CDDD6F61 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AFE6F3A32E4F4CB300FC0C78 /* Notepad++ */,
 			);
 			name = "Notepad++";
 			packageProductDependencies = (
+				6EAA552DB5A4CC86F77E1EBE /* Sparkle */,
 			);
 			productName = "Notepad++";
 			productReference = AFE6F3A12E4F4CB300FC0C78 /* Notepad++.app */;
@@ -94,6 +108,9 @@
 			);
 			mainGroup = AFE6F3982E4F4CB300FC0C78;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9AE2B2E0D81DB5AFE0FAAE5C /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AFE6F3A22E4F4CB300FC0C78 /* Products */;
 			projectDirPath = "";
@@ -253,7 +270,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Notepad++/Notepad__.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -265,7 +282,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.pedrogruvhagen.notepadpp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = NO;
@@ -282,7 +299,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Notepad++/Notepad__.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -294,7 +311,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.pedrogruvhagen.notepadpp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = NO;
@@ -325,6 +342,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9AE2B2E0D81DB5AFE0FAAE5C /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6EAA552DB5A4CC86F77E1EBE /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9AE2B2E0D81DB5AFE0FAAE5C /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AFE6F3992E4F4CB300FC0C78 /* Project object */;
 }

@@ -18,6 +18,7 @@ import SwiftUI
 
 struct HelpCommands: Commands {
     @Environment(\.openWindow) private var openWindow
+    @ObservedObject private var updaterManager = UpdaterManager.shared
 
     var body: some Commands {
         CommandGroup(replacing: .help) {
@@ -44,8 +45,9 @@ struct HelpCommands: Commands {
             Divider()
 
             Button("Check for Updates...") {
-                Self.open("\(HelpContent.projectURL)/releases")
+                updaterManager.checkForUpdates()
             }
+            .disabled(!updaterManager.canCheckForUpdates)
 
             Divider()
 

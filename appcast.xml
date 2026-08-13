@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sparkle 2 appcast for Notepad++ for macOS (UpdaterManager.swift, Info.plist SUFeedURL).
+  Published at https://raw.githubusercontent.com/PedroGruvhagen/Notepadplusplus-MacOS/main/appcast.xml
+  and fetched by every installed copy's automatic/manual update check.
+
+  Populated automatically by scripts/sign-and-notarize.sh on every release: it signs the
+  release DMG with Sparkle's sign_update tool and inserts a new <item> (newest first) with
+  the resulting sparkle:edSignature and length. Do not hand-edit the <item> list; re-run the
+  release script instead so the signature always matches the exact DMG bytes.
+-->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Notepad++ for macOS</title>
+        <link>https://raw.githubusercontent.com/PedroGruvhagen/Notepadplusplus-MacOS/main/appcast.xml</link>
+        <description>Release updates for the Notepad++ macOS port.</description>
+        <language>en</language>
+    </channel>
+</rss>
