@@ -40,11 +40,11 @@
 
 	  SUFeedURL: the appcast this build checks against. Published at the repo root (appcast.xml) and
 	  populated by scripts/sign-and-notarize.sh on every release.
-	  SUPublicEDKey: the EdDSA public key generated once via Sparkle's generate_keys tool (private key
-	  stays in the login Keychain; sign_update uses it to sign each release DMG). Still the
-	  REPLACE_ME sentinel: generate_keys needs an interactive Keychain authorization dialog that
-	  cannot be approved in a non-interactive session. See
-	  .deferred/notepadpp/2026-08-13-sparkle-eddsa-keys.md and lore/pages/auto-update-sparkle.md.
+	  SUPublicEDKey: the EdDSA public key of a file-based keypair (no Keychain involved). The private
+	  key lives at scripts/sparkle_eddsa_private.key, gitignored via .gitignore's *.key rule, mode 600,
+	  generated once by scripts/generate-sparkle-keys.swift (CryptoKit's Curve25519.Signing.PrivateKey,
+	  written straight to disk, no Keychain authorization dialog involved). scripts/sign-and-notarize.sh
+	  passes that file to Sparkle's sign_update via --ed-key-file to sign each release DMG.
 	  SUEnableAutomaticChecks: Sparkle's own opt-in flag for background checks; UpdaterManager also
 	  drives automaticallyChecksForUpdates directly from AppSettings.checkForUpdates at every launch,
 	  so this is the same default the Settings toggle starts with.
@@ -52,7 +52,7 @@
 	<key>SUFeedURL</key>
 	<string>https://raw.githubusercontent.com/PedroGruvhagen/Notepadplusplus-MacOS/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>REPLACE_ME</string>
+	<string>5cXEscKL0ECp25g8XUGCe9VmRSehIVf0NcOMR+lpcYM=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 </dict>

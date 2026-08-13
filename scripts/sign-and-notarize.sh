@@ -144,9 +144,11 @@ xcrun stapler staple "$DMG"
 echo "==> Signing update artifact for Sparkle and updating appcast.xml"
 # sign_update ships inside the Sparkle SPM package's own artifacts, resolved into this
 # release build's own -derivedDataPath ($BUILD_DIR) above, same as Xcode resolves it for
-# interactive builds. It signs the exact DMG bytes with the EdDSA key generate_keys stored
-# in the login Keychain (see lore/pages/auto-update-sparkle.md) and prints the
-# sparkle:edSignature + length enclosure attributes Sparkle's appcast needs.
+# interactive builds. It signs the exact DMG bytes with the file-based EdDSA private key at
+# scripts/sparkle_eddsa_private.key (gitignored, mode 600, generated once by
+# scripts/generate-sparkle-keys.swift; no Keychain involved, see
+# lore/pages/auto-update-sparkle.md) and prints the sparkle:edSignature + length enclosure
+# attributes Sparkle's appcast needs.
 SIGN_UPDATE="$BUILD_DIR/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
 if [ ! -x "$SIGN_UPDATE" ]; then
   echo "ERROR: sign_update tool not found at $SIGN_UPDATE" >&2
@@ -154,9 +156,16 @@ if [ ! -x "$SIGN_UPDATE" ]; then
   exit 1
 fi
 
+ED_KEY_FILE="$ROOT/scripts/sparkle_eddsa_private.key"
+if [ ! -f "$ED_KEY_FILE" ]; then
+  echo "ERROR: Sparkle EdDSA private key not found at $ED_KEY_FILE" >&2
+  echo "       Generate it once with: swift scripts/generate-sparkle-keys.swift" >&2
+  exit 1
+fi
+
 BUILD_NUMBER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")"
 MIN_SYSTEM_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP/Contents/Info.plist" 2>/dev/null || echo "15.5")"
-SIGN_UPDATE_OUTPUT="$("$SIGN_UPDATE" "$DMG")"
+SIGN_UPDATE_OUTPUT="$("$SIGN_UPDATE" --ed-key-file "$ED_KEY_FILE" "$DMG")"
 ED_SIGNATURE="$(printf '%s' "$SIGN_UPDATE_OUTPUT" | sed -nE 's/.*sparkle:edSignature="([^"]*)".*/\1/p')"
 DMG_LENGTH="$(printf '%s' "$SIGN_UPDATE_OUTPUT" | sed -nE 's/.*length="([^"]*)".*/\1/p')"
 if [ -z "$ED_SIGNATURE" ] || [ -z "$DMG_LENGTH" ]; then
