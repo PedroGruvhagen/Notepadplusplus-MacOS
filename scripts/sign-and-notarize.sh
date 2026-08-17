@@ -79,6 +79,33 @@ fi
 
 echo "==> Signing nested code (inside-out), then the app, with hardened runtime"
 
+# codesign --timestamp calls Apple's timestamp authority (TSA) for every invocation. In
+# practice this intermittently fails with "The timestamp service is not available" when
+# several codesign --timestamp calls fire back-to-back (observed across the nested Sparkle
+# helper binaries below: Downloader.xpc, Installer.xpc, Autoupdate, Updater.app), even with
+# otherwise stable, verified connectivity to Apple. codesign treats this as fatal (non-zero
+# exit) since a signature without a valid timestamp would fail notarization anyway, and this
+# script's `set -e` would then abort the whole release. Retry with a short backoff instead of
+# letting one transient TSA hiccup kill a release that has already gotten this far.
+codesign_with_retry() {
+  local attempt=1
+  local max_attempts=5
+  local delay=5
+  while true; do
+    if codesign "$@"; then
+      return 0
+    fi
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      echo "ERROR: codesign failed after $max_attempts attempts: codesign $*" >&2
+      return 1
+    fi
+    echo "==> codesign attempt $attempt/$max_attempts failed (likely a transient Apple timestamp-service hiccup), retrying in ${delay}s..." >&2
+    sleep "$delay"
+    attempt=$((attempt + 1))
+    delay=$((delay * 2))
+  done
+}
+
 # Sparkle.framework carries its own nested executable code (XPC services, the
 # Autoupdate installer binary, and the Updater.app progress-UI helper) that a
 # plain `find -name "*.dylib" -o -name "*.framework"` loop never reaches, since
@@ -102,17 +129,17 @@ if [ -d "$SPARKLE_FRAMEWORK" ]; then
       echo "       Sparkle's internal layout may have changed; update this script." >&2
       exit 1
     fi
-    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$nested"
+    codesign_with_retry --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$nested"
   done
 fi
 
 # Sign any remaining embedded dylibs/frameworks (including Sparkle.framework
 # itself, now that its nested code above is already signed), then seal the app.
 while IFS= read -r -d '' item; do
-  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$item"
+  codesign_with_retry --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$item"
 done < <(find "$APP/Contents" \( -name "*.dylib" -o -name "*.framework" \) -print0 2>/dev/null)
 
-codesign --force --options runtime --timestamp \
+codesign_with_retry --force --options runtime --timestamp \
   --entitlements "$ENTITLEMENTS" \
   --sign "$SIGN_IDENTITY" "$APP"
 
