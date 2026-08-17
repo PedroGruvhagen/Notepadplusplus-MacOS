@@ -42,21 +42,42 @@ struct LanguageMenuView: View {
 private struct ActiveDocumentLanguageMenuItems: View {
     @ObservedObject var document: Document
 
+    private static let topUsedCount = 5
+
     var body: some View {
         let currentName = document.language?.name ?? "normal"
+        let allLanguages = LanguageManager.shared.availableLanguages
+        let topLanguages = LanguageManager.shared.topUsedLanguages(limit: Self.topUsedCount)
+        let topNames = Set(topLanguages.map { $0.name })
+        let remainingLanguages = allLanguages.filter { !topNames.contains($0.name) }
 
-        ForEach(LanguageManager.shared.availableLanguages, id: \.name) { language in
-            let definition = language.toLanguageDefinition()
+        ForEach(topLanguages, id: \.name) { language in
+            languageButton(for: language, currentName: currentName)
+        }
 
-            Button(action: {
-                // Set language for the current document only
-                document.language = definition
-            }) {
-                HStack {
-                    Text(language.name.capitalized)
-                    if definition?.name == currentName {
-                        Image(systemName: "checkmark")
-                    }
+        if !topLanguages.isEmpty {
+            Divider()
+        }
+
+        ForEach(remainingLanguages, id: \.name) { language in
+            languageButton(for: language, currentName: currentName)
+        }
+    }
+
+    @ViewBuilder
+    private func languageButton(for language: Lang, currentName: String) -> some View {
+        let definition = language.toLanguageDefinition()
+
+        Button(action: {
+            // Set language for the current document only
+            document.language = definition
+            // Track real usage so the top-5 "most used" section reflects actual selections.
+            AppSettings.shared.recordLanguageUsage(language.name)
+        }) {
+            HStack {
+                Text(language.name.capitalized)
+                if definition?.name == currentName {
+                    Image(systemName: "checkmark")
                 }
             }
         }

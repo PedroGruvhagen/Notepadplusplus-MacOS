@@ -164,6 +164,46 @@ class LanguageManager {
         return _langList
     }
 
+    // MARK: - Most-used language ranking (Phase 2, gutter-langmenu-fix task)
+    // Not a C++/Scintilla translation - Pedro's own explicit UX request. Ranks `_langList` by
+    // AppSettings.shared.languageUsageCounts (keyed by Lang.name), most-used first. Before any
+    // selection has ever been recorded (fresh install / all counts zero), falls back to a small
+    // curated bootstrap list of broadly common languages rather than an arbitrary/alphabetical
+    // slice - langs.model.xml's raw order is alphabetical (normal, actionscript, ada, asm, asn1,
+    // ...), which would be a useless "top 5" on first run.
+    private static let bootstrapTopLanguageNames = ["python", "javascript", "html", "cpp", "java"]
+
+    func topUsedLanguages(limit: Int) -> [Lang] {
+        let counts = AppSettings.shared.languageUsageCounts
+        let hasAnyUsage = counts.values.contains { $0 > 0 }
+
+        guard hasAnyUsage else {
+            return fallbackTopLanguages(limit: limit)
+        }
+
+        let indexed = _langList.enumerated().map { (index: $0.offset, lang: $0.element) }
+        let sortedByUsage = indexed.sorted { a, b in
+            let countA = counts[a.lang.name] ?? 0
+            let countB = counts[b.lang.name] ?? 0
+            if countA != countB { return countA > countB }
+            return a.index < b.index // stable tie-break: preserve original list order
+        }
+        return Array(sortedByUsage.prefix(limit).map { $0.lang })
+    }
+
+    private func fallbackTopLanguages(limit: Int) -> [Lang] {
+        var result: [Lang] = Self.bootstrapTopLanguageNames.compactMap { name in
+            _langList.first(where: { $0.name == name })
+        }
+        if result.count < limit {
+            for lang in _langList where !result.contains(where: { $0 === lang }) {
+                result.append(lang)
+                if result.count == limit { break }
+            }
+        }
+        return Array(result.prefix(limit))
+    }
+
     // F54: resolve a LanguageDefinition from a UI language display name (the New Document default
     // language picker persists Lang.name). Returns nil for "Plain Text" / unknown -> a plain buffer.
     func languageDefinition(named displayName: String) -> LanguageDefinition? {

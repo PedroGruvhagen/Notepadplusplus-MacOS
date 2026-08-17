@@ -162,7 +162,33 @@ class AppSettings: ObservableObject {
     @AppStorage("defaultLineEnding") var defaultLineEnding: LineEnding = .unix
     @AppStorage("defaultLanguage") var defaultLanguage: String = "Plain Text"
     @AppStorage("openAnsiAsUtf8") var openAnsiAsUtf8: Bool = true
-    
+
+    // MARK: - Language Menu Usage Tracking (Phase 2, gutter-langmenu-fix task)
+    // Not a C++ translation - Pedro's own explicit UX request: track how many times each
+    // language has been chosen via the Language menu (LanguageMenuView.swift's Button action)
+    // so the menu can pin the 5 most-used languages above the full list. Keyed by Lang.name (the
+    // raw langs.model.xml name used as LanguageManager.availableLanguages' identity, e.g. "cpp",
+    // "python" - NOT LanguageDefinition.name, a different lowercased/underscored space used only
+    // for the active-language checkmark comparison, see LanguageMenuView.swift).
+    private static let languageUsageCountsKey = "languageUsageCounts"
+
+    var languageUsageCounts: [String: Int] {
+        get { (defaults.dictionary(forKey: Self.languageUsageCountsKey) as? [String: Int]) ?? [:] }
+        set { defaults.set(newValue, forKey: Self.languageUsageCountsKey) }
+    }
+
+    // Called from the Language menu's Button action on every explicit selection (deliberate user
+    // choice only). Deliberately NOT called from DocumentManager.applyNewDocumentDefaults (the New
+    // Document default-language auto-apply) or from Document.setFileName's file-extension
+    // auto-detection (Document.swift ~line 271) - neither reflects a deliberate menu choice, and
+    // counting them would flood the counter with "Plain Text"/extension noise instead of real
+    // preference signal.
+    func recordLanguageUsage(_ languageName: String) {
+        var counts = languageUsageCounts
+        counts[languageName, default: 0] += 1
+        languageUsageCounts = counts
+    }
+
     // MARK: - Backup/Auto-Save Settings
     @AppStorage("enableBackup") var enableBackup: Bool = false
     @AppStorage("backupMode") var backupMode: BackupMode = .simple
