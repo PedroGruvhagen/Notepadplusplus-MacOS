@@ -42,9 +42,11 @@ struct EditorView: View {
                 )
             }
             
-            // F61: the line-number gutter is now a native NSRulerView INSIDE the editor's scroll
-            // view (DocumentTextEditor), so it scrolls with the text by construction. The old sibling
-            // SwiftUI gutter (EnhancedLineNumberView) is gone; showLineNumbers now toggles the ruler.
+            // F61: the line-number gutter is EditorGutterView, a plain NSView laid out beside the
+            // editor's scroll view inside DocumentTextEditor's EditorContainerView, so it scrolls with
+            // the text by construction (see EditorLineNumberRulerView.swift's header comment for the
+            // full history: an even older sibling SwiftUI gutter, then an NSRulerView-based gutter that
+            // was purged and rebuilt as this plain-NSView design). showLineNumbers toggles the gutter.
             // Keeping ONE DocumentTextEditor call site means the representable identity never flips, so
             // the editor and its Coordinator are not torn down and recreated (F01).
             DocumentTextEditor(

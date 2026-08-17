@@ -10,6 +10,43 @@ import SwiftUI
 import AppKit
 import Combine
 
+// F61: the editor pane's root view. Holds the line-number gutter (EditorGutterView) and the text
+// scroll view as SIBLINGS laid out side by side with Auto Layout, so their frames can never overlap
+// and the text view never needs its own insets adjusted to make room for the gutter. This replaces
+// the old design where the gutter was installed as the scroll view's own `verticalRulerView` - see
+// EditorLineNumberRulerView.swift's header comment for exactly why that was purged and rebuilt this
+// way (including the separate tab-bar hairline-bleed artifact this design also eliminates, since it
+// never touches the scroll view's ruler machinery at all).
+final class EditorContainerView: NSView {
+    let scrollView: NSScrollView
+    let gutterView: EditorGutterView
+
+    init(scrollView: NSScrollView, gutterView: EditorGutterView) {
+        self.scrollView = scrollView
+        self.gutterView = gutterView
+        super.init(frame: .zero)
+
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(gutterView)
+        addSubview(scrollView)
+
+        NSLayoutConstraint.activate([
+            gutterView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            gutterView.topAnchor.constraint(equalTo: topAnchor),
+            gutterView.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            scrollView.leadingAnchor.constraint(equalTo: gutterView.trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: topAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor)
+        ])
+    }
+
+    required init(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
 struct DocumentTextEditor: NSViewRepresentable {
     @ObservedObject var document: Document
     let fontSize: CGFloat
@@ -56,7 +93,7 @@ struct DocumentTextEditor: NSViewRepresentable {
         textView.showFindIndicator(for: clamped)
     }
 
-    func makeNSView(context: Context) -> NSScrollView {
+    func makeNSView(context: Context) -> EditorContainerView {
         let scrollView = NSScrollView()
         
         // Each representable/Coordinator owns its own NSTextView (one per view pane).
@@ -202,17 +239,19 @@ struct DocumentTextEditor: NSViewRepresentable {
         scrollView.hasHorizontalScroller = true
         scrollView.borderType = .noBorder
 
-        // F61: the line-number gutter is a native NSRulerView installed as the scroll view's
-        // verticalRulerView, so AppKit redraws it in lockstep with the document view on every scroll
-        // and each number stays beside its line (the old sibling SwiftUI gutter observed nothing and
-        // stayed frozen). The ruler also hosts the fold markers (F19) and bookmark margin (F51/F56).
-        let ruler = EditorLineNumberRulerView(scrollView: scrollView, textView: textView, fontSize: fontSize)
-        ruler.document = document
-        scrollView.verticalRulerView = ruler
-        scrollView.hasVerticalRuler = true
-        scrollView.rulersVisible = showLineNumbers
-        context.coordinator.lineNumberRuler = ruler
-        ruler.refresh()
+        // F61: the line-number gutter is EditorGutterView, a plain NSView laid out side by side with
+        // this scroll view inside EditorContainerView (Auto Layout, above) - NOT the scroll view's own
+        // verticalRulerView. See EditorLineNumberRulerView.swift's header comment for exactly why the
+        // previous NSRulerView-based gutter was purged and rebuilt this way. The gutter observes the
+        // scroll view's clip view to redraw in lockstep on every scroll, and also hosts the fold
+        // markers (F19) and bookmark margin (F51/F56).
+        let gutterView = EditorGutterView(scrollView: scrollView, textView: textView, fontSize: fontSize)
+        gutterView.document = document
+        gutterView.showGutter = showLineNumbers
+        context.coordinator.lineNumberGutter = gutterView
+        gutterView.refresh()
+
+        let container = EditorContainerView(scrollView: scrollView, gutterView: gutterView)
 
         context.coordinator.textView = textView
 
@@ -306,10 +345,11 @@ struct DocumentTextEditor: NSViewRepresentable {
             textView.window?.makeFirstResponder(textView)
         }
 
-        return scrollView
+        return container
     }
-    
-    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+
+    func updateNSView(_ container: EditorContainerView, context: Context) {
+        let scrollView = container.scrollView
         // Resolve this pane's text view: the Coordinator owns it (one NSTextView per view
         // pane, F01), falling back to the scroll view's documentView only if the
         // coordinator reference was lost.
@@ -369,9 +409,9 @@ struct DocumentTextEditor: NSViewRepresentable {
             // F19/F61: repoint the folding delegate and the gutter at the newly activated document,
             // and re-subscribe to its fold-visibility so a fold toggle re-lays out THIS document.
             context.coordinator.foldingDelegate.document = document
-            context.coordinator.lineNumberRuler?.document = document
+            context.coordinator.lineNumberGutter?.document = document
             context.coordinator.subscribeFolding(to: document)
-            context.coordinator.lineNumberRuler?.refresh()
+            context.coordinator.lineNumberGutter?.refresh()
             // F53: the pane's editor is the same NSTextView across a document swap, so the engine keeps
             // observing it; just reload the new document's language keywords.
             context.coordinator.applyAutoCompletionLanguage(for: document)
@@ -467,11 +507,11 @@ struct DocumentTextEditor: NSViewRepresentable {
             editorTextView.indentTabSize = tabSize
             editorTextView.needsDisplay = true
         }
-        if scrollView.rulersVisible != showLineNumbers {
-            scrollView.rulersVisible = showLineNumbers
+        if container.gutterView.showGutter != showLineNumbers {
+            container.gutterView.showGutter = showLineNumbers
         }
         context.coordinator.applyScrollBeyondLastLine(scrollView)
-        context.coordinator.lineNumberRuler?.refresh()
+        context.coordinator.lineNumberGutter?.refresh()
 
         // Update indentation settings
         textView.configureIndentationSettings(
@@ -496,11 +536,11 @@ struct DocumentTextEditor: NSViewRepresentable {
         }
     }
 
-    static func dismantleNSView(_ scrollView: NSScrollView, coordinator: Coordinator) {
+    static func dismantleNSView(_ container: EditorContainerView, coordinator: Coordinator) {
         // Deterministically park the view when its window/tab closes: detach the layout
         // manager from the document storage so the storage is not left wired to a dead
         // view, and drop the active-view handle if it pointed here (F01).
-        let textView = coordinator.textView ?? (scrollView.documentView as? NSTextView)
+        let textView = coordinator.textView ?? (container.scrollView.documentView as? NSTextView)
         if let textView = textView {
             if Self.activeTextView === textView {
                 Self.activeTextView = nil
@@ -561,8 +601,8 @@ struct DocumentTextEditor: NSViewRepresentable {
         // F49: index of the current match within searchHighlightRanges, so a durable reassert repaints
         // it with the stronger "current" colour rather than the plain match colour.
         var searchCurrentIndex: Int = 0
-        // F61: the native line-number gutter (NSRulerView) for this pane.
-        weak var lineNumberRuler: EditorLineNumberRulerView?
+        // F61: the native line-number gutter (a plain sibling NSView, EditorGutterView) for this pane.
+        weak var lineNumberGutter: EditorGutterView?
         // F19: hides collapsed fold ranges from layout; document repointed on a tab swap.
         let foldingDelegate = FoldingLayoutManagerDelegate()
         // F19: subscription to this document's collapsedLines so a fold toggle re-lays out the text.
@@ -589,7 +629,7 @@ struct DocumentTextEditor: NSViewRepresentable {
                 .sink { [weak self] _ in
                     MainActor.assumeIsolated {
                         self?.refoldLayout()
-                        self?.lineNumberRuler?.refresh()
+                        self?.lineNumberGutter?.refresh()
                     }
                 }
         }
@@ -631,7 +671,7 @@ struct DocumentTextEditor: NSViewRepresentable {
             layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
             layoutManager.ensureLayout(forBoundingRect: textView.visibleRect, in: container)
             textView.needsDisplay = true
-            lineNumberRuler?.needsDisplay = true
+            lineNumberGutter?.needsDisplay = true
         }
 
         // F55: scroll-beyond-last-line. Notepad++ SCI_SETENDATLASTLINE(!scrollBeyondLastLine)
@@ -735,7 +775,7 @@ struct DocumentTextEditor: NSViewRepresentable {
 
             // F61: line count / numbering may have changed; repaint and re-measure the gutter. The
             // ruler already tracks scrolling on its own; this covers content edits.
-            lineNumberRuler?.refresh()
+            lineNumberGutter?.refresh()
 
             // F49: keep the Find bar's n/m count from going stale after an edit, but only while a
             // search is actually highlighting (guarded by the non-empty highlighted-range set). The
@@ -915,7 +955,7 @@ struct DocumentTextEditor: NSViewRepresentable {
                 let line = document.lineIndex(forCharacterAt: textView.selectedRange().location)
                 document.toggleBookmark(atLine: line)
                 mirrorPanelBookmark(document: document, textView: textView, line: line)
-                lineNumberRuler?.needsDisplay = true
+                lineNumberGutter?.needsDisplay = true
             }
         }
 
@@ -1000,7 +1040,7 @@ struct DocumentTextEditor: NSViewRepresentable {
             }
             storage.endEditing()
             markedSearchRanges = ranges
-            lineNumberRuler?.needsDisplay = true
+            lineNumberGutter?.needsDisplay = true
         }
 
         // Remove Mark All backgrounds, bounds-checked against the CURRENT storage (a doc swap between
